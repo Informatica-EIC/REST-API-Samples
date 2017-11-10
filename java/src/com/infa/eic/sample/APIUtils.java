@@ -26,30 +26,18 @@ public final class APIUtils {
 	public static final String CORE_RESOURCE_NAME="core.resourceName";
 	public static final String BGTERM="com.infa.ldm.bg.BGTerm";
 	
-	//private static String BASE="http://eicbeta38004.informatica.com:9085";
 	public static final String DATASET_FLOW="core.DataSetDataFlow";
 	
-//	/**
-//	 * Access URL of the EIC Instance
-//	 */
-//	private static String URL="http://34.213.249.201:9085/access/2";
-//	
-//	/**
-//	 * Credentials.
-//	 */
-//	private static String USER="Administrator";
-//	private static String PASS="Infa@2016";
-
 	/**
 	 * Access URL of the EIC Instance
 	 */
-	private static String URL="http://eicbeta38004.informatica.com:9085/access/2";
+	private static String URL="http://<eic-host>:<port>/access/2";
 	
 	/**
 	 * Credentials.
 	 */
-	private static String USER="gaurav";
-	private static String PASS="welcome1";
+	private static String USER=""; //Enter User name
+	private static String PASS=""; //Enter password
 	
 	
 	

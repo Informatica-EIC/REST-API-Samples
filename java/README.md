@@ -1,13 +1,13 @@
 Requirements
 ------------
 * Eclipse
-** Download: http://www.eclipse.org/downloads/eclipse-packages/
+  * Download: http://www.eclipse.org/downloads/eclipse-packages/
 * Java SDK
-** Download: http://www.oracle.com/technetwork/java/javase/downloads/index.html
+  * Download: http://www.oracle.com/technetwork/java/javase/downloads/index.html
 * Libraries
-** client.jar: Download from your EIC instance: http://<cataloghost>:<port>/access/2/files/client.jar
-** fuzzywuzzy.jar: https://github.com/xdrop/fuzzywuzzy/releases
-** Opencsv.jar: https://sourceforge.net/projects/opencsv/
+  * client.jar: Download from your EIC instance: http://<cataloghost>:<port>/access/2/files/client.jar
+  * fuzzywuzzy.jar: https://github.com/xdrop/fuzzywuzzy/releases
+  * Opencsv.jar: https://sourceforge.net/projects/opencsv/
   
 Getting Started
 ---------------

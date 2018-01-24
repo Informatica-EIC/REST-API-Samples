@@ -3,13 +3,17 @@
  */
 package com.infa.eic.sample;
 
+
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import com.infa.products.ldm.core.rest.v2.client.api.ModelInfoApi;
 import com.infa.products.ldm.core.rest.v2.client.api.ObjectInfoApi;
 import com.infa.products.ldm.core.rest.v2.client.api.ObjectModificationApi;
+import com.infa.products.ldm.core.rest.v2.client.invoker.ApiException;
 import com.infa.products.ldm.core.rest.v2.client.models.FactResponse;
+import com.infa.products.ldm.core.rest.v2.client.models.LinkedObjectResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.ObjectResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.ObjectsResponse;
 
@@ -105,6 +109,34 @@ public final class APIUtils {
 			}
 		}
 		return retMap;
+	}
+	
+		public static final HashMap<String,HashSet<String>> getTableColumnMap() throws Exception {
+		int total=1000;
+		int offset=0;
+		final int pageSize=300;
+		
+		String query="* AND core.allclassTypes:\""+TABLE_CLASSTYPE+"\"";
+		HashMap<String, HashSet<String>> retMap=new HashMap<String,HashSet<String>>();
+		
+		while (offset<total) {
+			ObjectsResponse response=READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			
+			total=response.getMetadata().getTotalCount().intValue();
+			offset+=pageSize;
+			
+			for(ObjectResponse or: response.getItems()) {
+				HashSet<String> colSet=new HashSet<String>();
+				retMap.put(or.getId(), colSet);				
+				for(LinkedObjectResponse lr : or.getDstLinks()) {
+					if(lr.getAssociation().equals("com.infa.ldm.relational.TableColumn")) {
+						colSet.add(lr.getId());
+					}
+				}
+				
+			}
+		}
+		return retMap; 
 	}
 
 }

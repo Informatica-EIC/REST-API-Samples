@@ -63,7 +63,9 @@ public class FuzzyBGAssociater {
 				//Remove all _ for a better fuzzy match
 				String colName=columnMap.get(columnID).replaceAll("_", " ");
 				
-				List<ExtractedResult> results= FuzzySearch.extractAll(colName, termMap.values(), THRESHOLD);
+				//List<ExtractedResult> results= FuzzySearch.extractAll(colName, termMap.values(), THRESHOLD);
+                           List<ExtractedResult> results= FuzzySearch.extractSorted(colName, termMap.values(), THRESHOLD);
+
 				
 				if(!results.isEmpty()) {
 				//System.out.println(columnName+":"+term);

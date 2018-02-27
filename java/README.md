@@ -23,4 +23,4 @@ Sample Programs in the Project
 * BGAssociationReport: This program uses the EIC REST API to generate a coverage report of BG terms against specified resources. Using this program, data stewards can quickly get a report on # of columns not associated with BG terms yet.
 * BulkClassifier: This program uses the EIC REST API to add values to custom attributes in data assets.
 * UnrulyLinker: This program uses the EIC REST API to add lineage links between tables of two resources having same names.
-
+* UltimateColumnLineageReport: this program retrieves the relational columns which have lineage information along with the origin column of the object.

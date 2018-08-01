@@ -63,6 +63,31 @@ public final class APIUtils {
 		MODEL_READER.getApiClient().setPassword(PASS);
 		MODEL_READER.getApiClient().setBasePath(URL);		
 	}
+
+	/**
+	 * setup the rest api - passing the url, id and password 
+	 * (so it does not need to be hard-coded)
+	 * 
+	 * @author dwrigley
+	 * 
+	 * @param url the rest api url
+	 * @param uid the user id (prefixed with security domain & \, if not Native)
+	 * @param pwd the password for the user
+	 */
+	public final static void setupOnce(String url, String uid, String pwd) {
+		READER.getApiClient().setUsername(uid);
+		READER.getApiClient().setPassword(pwd);
+		READER.getApiClient().setBasePath(url);		
+	
+		WRITER.getApiClient().setUsername(uid);
+		WRITER.getApiClient().setPassword(pwd);
+		WRITER.getApiClient().setBasePath(url);	
+		
+		MODEL_READER.getApiClient().setUsername(uid);
+		MODEL_READER.getApiClient().setPassword(pwd);
+		MODEL_READER.getApiClient().setBasePath(url);	
+	}
+
 	
 	public static final String getValue(ObjectResponse obj, String name) {
 		for(FactResponse fact:obj.getFacts()) {

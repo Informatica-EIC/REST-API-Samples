@@ -164,4 +164,28 @@ public final class APIUtils {
 		return retMap; 
 	}
 
+	/**
+	 * prompt the user for a password, using the console (default)
+	 * for development environments like eclipse, their is no standard console.
+	 * so in that case we open a swing ui panel with an input field to accept a password
+	 * 
+	 * @return the password entered
+	 * 
+	 * @author dwrigley
+	 */
+	public static String getPassword() {
+		String password;
+		Console c=System.console();
+		if (c==null) { //IN ECLIPSE IDE (prompt for password using swing ui    	
+			final JPasswordField pf = new JPasswordField(); 
+			String message = "User password:";
+			password = JOptionPane.showConfirmDialog( null, pf, message, JOptionPane.OK_CANCEL_OPTION, 
+						JOptionPane.QUESTION_MESSAGE ) == JOptionPane.OK_OPTION ? new String( pf.getPassword() ) : "enter your pwd here...."; 
+		} else { //Outside Eclipse IDE  (e.g. windows/linux console)
+			password = new String(c.readPassword("User password: "));
+		}		
+		return password;
+	}
+
+
 }

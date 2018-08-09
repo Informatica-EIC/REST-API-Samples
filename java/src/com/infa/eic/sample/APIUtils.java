@@ -63,6 +63,31 @@ public final class APIUtils {
 		MODEL_READER.getApiClient().setPassword(PASS);
 		MODEL_READER.getApiClient().setBasePath(URL);		
 	}
+
+	/**
+	 * setup the rest api - passing the url, id and password 
+	 * (so it does not need to be hard-coded)
+	 * 
+	 * @author dwrigley
+	 * 
+	 * @param url the rest api url
+	 * @param uid the user id (prefixed with security domain & \, if not Native)
+	 * @param pwd the password for the user
+	 */
+	public final static void setupOnce(String url, String uid, String pwd) {
+		READER.getApiClient().setUsername(uid);
+		READER.getApiClient().setPassword(pwd);
+		READER.getApiClient().setBasePath(url);		
+	
+		WRITER.getApiClient().setUsername(uid);
+		WRITER.getApiClient().setPassword(pwd);
+		WRITER.getApiClient().setBasePath(url);	
+		
+		MODEL_READER.getApiClient().setUsername(uid);
+		MODEL_READER.getApiClient().setPassword(pwd);
+		MODEL_READER.getApiClient().setBasePath(url);	
+	}
+
 	
 	public static final String getValue(ObjectResponse obj, String name) {
 		for(FactResponse fact:obj.getFacts()) {
@@ -138,5 +163,29 @@ public final class APIUtils {
 		}
 		return retMap; 
 	}
+
+	/**
+	 * prompt the user for a password, using the console (default)
+	 * for development environments like eclipse, their is no standard console.
+	 * so in that case we open a swing ui panel with an input field to accept a password
+	 * 
+	 * @return the password entered
+	 * 
+	 * @author dwrigley
+	 */
+	public static String getPassword() {
+		String password;
+		Console c=System.console();
+		if (c==null) { //IN ECLIPSE IDE (prompt for password using swing ui    	
+			final JPasswordField pf = new JPasswordField(); 
+			String message = "User password:";
+			password = JOptionPane.showConfirmDialog( null, pf, message, JOptionPane.OK_CANCEL_OPTION, 
+						JOptionPane.QUESTION_MESSAGE ) == JOptionPane.OK_OPTION ? new String( pf.getPassword() ) : "enter your pwd here...."; 
+		} else { //Outside Eclipse IDE  (e.g. windows/linux console)
+			password = new String(c.readPassword("User password: "));
+		}		
+		return password;
+	}
+
 
 }

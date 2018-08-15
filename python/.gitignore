@@ -1,0 +1,4 @@
+externalDBLinks.csv
+.pydevproject
+*.pyc
+out/*.csv

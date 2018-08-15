@@ -11,12 +11,9 @@ it handles the paging model (see pageSize variable)
 #coding=utf8
 
 import requests
-#import json
-#import urllib
 from requests.auth import HTTPBasicAuth
 import time
 import edcutils
-#import csv
 
 start_time = time.time()
 
@@ -82,7 +79,6 @@ def main():
         page += 1
         resp = requests.get(objectsurl, params=parameters, headers=header, auth=HTTPBasicAuth(uid,pwd))
         status = resp.status_code
-        #print ('ret=' + str(status) + " page=" + str(page))
         if status != 200:
             # some error - e.g. catalog not running, or bad credentials
             print("error! " + str(status) + str(resp.json()))
@@ -96,9 +92,9 @@ def main():
         offset += pageSize;
  
         global itemCount
-        for extDBItem in resultJson["items"]:
+        for foundItem in resultJson["items"]:
             itemCount+=1
-            processItem(anItem = extDBItem, itemCount=itemCount)
+            processItem(anItem = foundItem, itemCount=itemCount)
             
         # end of page processing
         print("    page processed - %s seconds ---" % (time.time() - page_time))

@@ -21,10 +21,11 @@ Getting Started
 Sample Programs in the Project
 ------------------------------
 
-* EDCQuery_template.py:  a template/skeleton that shows how to connect to the catalog and execute a search using python.  the result-set processing includes handling the paging model.  It also uses the `getFactValue` method in `edcutils.py` to extract the item name from the facts array
-* edcutils.py:  utility/helper methods for common tasks - like get an attribute value `getFactValue(item, attrName)`
-* listCustomAttributes: simple script to print all custom attributes (name, id, type, sortable, facetable)
-* similarityReport.py: v10.2.1+ utility to find & export all columns/fields with similar links
-* encodeUser.py: simple program to prompt for a userid/pwd and optionally a security domain and create a base64 encoded string that can be used for authentication in the http header.  e.g. ```"Authorization": "Basic QWRtaW5pc3RyYXRvcjpBZG1pbmlzdHJhdG9y"```
+* `EDCQuery_template.py`:  a template/skeleton that shows how to connect to the catalog and execute a search using python.  the result-set processing includes handling the paging model.  It also uses the `getFactValue` method in `edcutils.py` to extract the item name from the facts array
+* `edcutils.py`:  utility/helper methods for common tasks - like get an attribute value `getFactValue(item, attrName)`
+* `listCustomAttributes.py`: simple script to print all custom attributes (name, id, type, sortable, facetable)
+* `similarityReport.py`: v10.2.1+ utility to find & export all columns/fields with similar links
+* `encodeUser.py`: simple program to prompt for a userid/pwd and optionally a security domain and create a base64 encoded string that can be used for authentication in the http header.  e.g. ```"Authorization": "Basic QWRtaW5pc3RyYXRvcjpBZG1pbmlzdHJhdG9y"```
+* `dbSchemaReplicationLineage.py`: provides the ability to link tables/columns in a database schema that are replicated to other schemas/databases & no scanner exists to automatcially document these relationships.  (e.g. sqoop, scripts/code, goldengate ...)
 
 

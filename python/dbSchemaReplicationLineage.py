@@ -63,7 +63,6 @@ pwd='Administrator'
 # you can just use authCredentials- with the correct value
 # comment lines with uid/pwd and uncomment the same line using only header (references to authCredentials)
 '''
-authCredentials="Basic QWRtaW5pc3RyYXRvcjp4ZGl1OW5nUHgzcj0="
 #authCredentials="Basic QWRtaW5pc3RyYXRvcjpBZG1pbmlzdHJhdG9y"
 
 # format the csv file name for custom lineage

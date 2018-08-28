@@ -1,0 +1,4 @@
+/bin/
+out/*.txt
+out/*.csv
+out/*.log

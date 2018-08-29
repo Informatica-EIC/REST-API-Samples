@@ -238,6 +238,7 @@ public class DBStructureExport {
 		int total=1000;
 		int offset=0;
 		count = 0;
+		int axonLinks = 0;
 
 		// for each page 
 		while (offset<total) {
@@ -248,7 +249,7 @@ public class DBStructureExport {
 			int dbCols=0;
 			count=0;
 			
-			//Iterate over returned objects and add them to the return hashmap
+			//Iterate over the database objects found
 			for(ObjectResponse or: response.getItems()) {
 				dbId = or.getId();
 				dbName = APIUtils.getValue(or,APIUtils.CORE_NAME);
@@ -266,42 +267,34 @@ public class DBStructureExport {
 						
 						// list all tables for the schema (performance test)
 						// make the relationship call - schema->table|view->column|viewcolumn
-/**
+
 
 						ArrayList<String> seedIds = new ArrayList<String>();
 						seedIds.add(schId);
 						ArrayList<String> linksToFollow = new ArrayList<String>();
-						linksToFollow.add("core.ParentChild");
+//						linksToFollow.add("core.ParentChild");
+						linksToFollow.add("com.infa.ldm.relational.SchemaTable");
+						linksToFollow.add("com.infa.ldm.relational.SchemaView");
+						linksToFollow.add("com.infa.ldm.relational.TableColumn");
+						linksToFollow.add("com.infa.ldm.relational.ViewViewColumn");
+
 						ArrayList<String> attrsToReturn = new ArrayList<String>();
 						attrsToReturn.add("core.name");
 						attrsToReturn.add("core.classType");
-**/						
-						//APIUtils.READER.catalogDataRelationshipsGetWithHttpInfo(seed, association, depth, direction, removeDuplicateAggregateLinks, includeTerms, includeAttribute)					
-//						Links schemaTablesResp=APIUtils.READER.catalogDataRelationshipsGet(seedIds, linksToFollow,  BigDecimal.valueOf(1), "OUT", true, null, attrsToReturn);
-//						for( Link l : relResp.getItems()) {
-
-						
-						// make the relationship call - schema->table|view->column|viewcolumn
-						ArrayList<String> seedIds = new ArrayList<String>();
-						seedIds.add(schId);
-						ArrayList<String> linksToFollow = new ArrayList<String>();
-						linksToFollow.add("core.ParentChild");
-						ArrayList<String> attrsToReturn = new ArrayList<String>();
-						attrsToReturn.add("core.name");
-//						attrsToReturn.add("core.classType");
 						attrsToReturn.add("com.infa.ldm.relational.Datatype");
 						attrsToReturn.add("com.infa.ldm.relational.DatatypeLength");
 						attrsToReturn.add("com.infa.ldm.relational.DatatypeScale");
+						// if axon
+						if (includeAxonTermLink) {
+							attrsToReturn.add("com.infa.ldm.axon.associatedGlossaries");
+						}
 							
 						//APIUtils.READER.catalogDataRelationshipsGetWithHttpInfo(seed, association, depth, direction, removeDuplicateAggregateLinks, includeTerms, includeAttribute)					
 						Links relResp=APIUtils.READER.catalogDataRelationshipsGet(seedIds, linksToFollow,  BigDecimal.valueOf(2), "OUT", true, null, attrsToReturn);
 						for( Link l : relResp.getItems()) {
-//							count++;
-//							System.out.println("\t\t\t" + l.getInId() + " class?" + l.getInEmbedded().getClass());
 							if (l.getAssociationId().equals("com.infa.ldm.relational.TableColumn") || 
 									l.getAssociationId().equals("com.infa.ldm.relational.ViewViewColumn") ) {
 								// we have a column level object...
-//								System.out.println("embedded fact: com.infa.ldm.relational.Datatype=" + this.getEmbeddedValue(l.getInEmbedded(), "com.infa.ldm.relational.Datatype" ));
 								String array[]= l.getInId().split("/");
 								tableName = array[4];
 								
@@ -314,7 +307,21 @@ public class DBStructureExport {
 										.append(getEmbeddedValue(l.getInEmbedded(), "com.infa.ldm.relational.DatatypeLength")).append(sepa) 
 										.append(getEmbeddedValue(l.getInEmbedded(), "com.infa.ldm.relational.DatatypeScale")
 										);
+								
+								if (includeAxonTermLink) {
+									String axonTermName = getEmbeddedValue(l.getInEmbedded(), "com.infa.ldm.axon.associatedGlossaries");
+									String axonTermLink = getEmbeddedProjectedFrom(l.getInEmbedded(), "com.infa.ldm.axon.associatedGlossaries");
+									if (axonTermName != null) {
+										axonLinks++;
+										dbStructureLine.append(sepa).append(axonTermName);
+										dbStructureLine.append(sepa).append(axonTermLink);
+									} else {
+										dbStructureLine.append(sepa).append("");
+										dbStructureLine.append(sepa).append("");
 
+									}	
+								}
+								
 								dbStructLines.add(dbStructureLine.toString());
 
 								count++;
@@ -322,14 +329,17 @@ public class DBStructureExport {
 							}
 						}
 
-
 					}
 					System.out.println("\t\t\tcolumns for schema=" + dbCols);
 				} // for each dstLink (database schema)
 			}
 
 		}
-		System.out.println("column count: " + count);		
+		System.out.println("\tcolumns processed: " + count);	
+		if (includeAxonTermLink) {
+			System.out.println("\tAxon terms linked: " + axonLinks);
+		}
+
 		Collections.sort(dbStructLines);
 		
 		
@@ -349,6 +359,14 @@ public class DBStructureExport {
 		for(EmbeddedFact fact:obj.getFacts()) {
 			if(name.equals(fact.getAttributeId())) {
 				return fact.getValue();
+			}
+		}
+		return null;
+	}
+	public String getEmbeddedProjectedFrom(EmbeddedObject obj, String name) {
+		for(EmbeddedFact fact:obj.getFacts()) {
+			if(name.equals(fact.getAttributeId())) {
+				return fact.getProjectedFrom();
 			}
 		}
 		return null;
@@ -420,7 +438,10 @@ public class DBStructureExport {
 		rep.setIncludeAxonTermLinks(includeAxonTerms);
 		List<String> dbStructureLines;
 		try {
-			dbStructureLines=rep.getResourceStructure(resourceName, 500);
+			// old way
+//			dbStructureLines=rep.getResourceStructure(resourceName, 500);
+			// new way - faster by 20-50% (using relationship api vs object
+			dbStructureLines=rep.getResourceStructureUsingRel(resourceName, 500);
 			String fileName = outFolder + "/" + resourceName + "_" + version + ".txt";
 			System.out.println("writing file to: _" + fileName);
 			rep.writeStructureToFile(fileName, dbStructureLines);
@@ -439,20 +460,22 @@ public class DBStructureExport {
 
 		System.out.println("db structure::end " +end + " elapsed: " + timeTaken);
 		
-		
+		/**
+		 * 
+		//testing
 		System.out.println("\n***********************************************");
-		
 		List<String> dbStructureViaRel;
 		try {
-			dbStructureLines=rep.getResourceStructureUsingRel(resourceName, 300);
+			dbStructureViaRel=rep.getResourceStructureUsingRel(resourceName, 500);
 			String fileName = outFolder + "/" + resourceName + "_" + version + "_rels.txt";
 			System.out.println("writing file to: _" + fileName);
-			rep.writeStructureToFile(fileName, dbStructureLines);
+			rep.writeStructureToFile(fileName, dbStructureViaRel);
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		 */
 
 
 	}

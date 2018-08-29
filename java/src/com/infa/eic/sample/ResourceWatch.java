@@ -32,7 +32,7 @@ import com.google.gson.GsonBuilder;
 
 
 public class ResourceWatch {
-    public static final String version="1.1";
+    public static final String version="1.2";
 
 	Integer waitTime = 0;
 //	Integer initialTime = 300;
@@ -44,6 +44,7 @@ public class ResourceWatch {
 	FileHandler fh;
 	String glossary;
 	String resourceTypes;
+	String resourceFilter;
 	String userName;
 	String pwd;
 	String dbsOutFolder;
@@ -65,6 +66,7 @@ public class ResourceWatch {
 	
 	
 	List<String> resourcesTypesToMonitor = new ArrayList<String>();
+	List<String> resourcesToWatch = new ArrayList<String>();
 	List<String> resourcesToMonitor = new ArrayList<String>();
 	Map<String,String> resourceJobMap = new HashMap<String,String>();
 	DateFormat df = new SimpleDateFormat("yyyyMMdd'T'HHmmssX");
@@ -158,6 +160,7 @@ public class ResourceWatch {
 			waitTime = Integer.parseInt(prop.getProperty("wait_time_seconds"));
 			restURL = prop.getProperty("rest_service");
 			resourceTypes =  prop.getProperty("resourceTypesToWatch");
+			resourceFilter =  prop.getProperty("resourcesToWatch");
 			userName = prop.getProperty("user");
 			pwd = prop.getProperty("password");
 			if (pwd.equals("<prompt>")) {
@@ -166,8 +169,14 @@ public class ResourceWatch {
 				System.out.println("pwd chars entered (debug):  " + pwd.length());
 			}
 			resourcesTypesToMonitor = new ArrayList<String>(Arrays.asList(resourceTypes.split(",")));
+			// only add to resourcesToWatch - if an entry was made for resourceFilter
+			if (resourceFilter.length() > 0) {
+				resourcesToWatch = new ArrayList<String>(Arrays.asList(resourceFilter.split(",")));
+			}
+			
 			pageSize=Integer.parseInt(prop.getProperty("pagesize", "300"));
 			System.out.println("Resource types filter: "  + resourcesTypesToMonitor);
+			System.out.println("Resource names filter: "  + resourcesToWatch);
 			
 			includeAxonTermLink=Boolean.parseBoolean(prop.getProperty("includeAxonTermLink"));				
 
@@ -337,7 +346,8 @@ public class ResourceWatch {
 			// we need to add the /2 here - since this watcher uses v1 for resource stuff
 			DBStructureExport dbs = new DBStructureExport(restURL + "/2", userName, pwd);
 			dbs.setIncludeAxonTermLinks(includeAxonTermLink);
-			List<String> dbStruct = dbs.getResourceStructure(resourceName, this.pageSize);
+//			List<String> dbStruct = dbs.getResourceStructure(resourceName, this.pageSize);
+			List<String> dbStruct = dbs.getResourceStructureUsingRel(resourceName, this.pageSize);
 			dbs.writeStructureToFile(fileName, dbStruct);
 			return true;
 		} catch (Exception e) {
@@ -404,8 +414,15 @@ public class ResourceWatch {
 //									resourcesTypesToMonitor.contains(res.resourceTypeName));
 					
 					if (this.resourcesTypesToMonitor.contains(res.resourceTypeName)) {
-						filteredResourceList.add(res.resourceName);
-						
+						// also filter on resource names						
+						if (this.resourcesToWatch.size() > 0) {
+							if (resourcesToWatch.contains(res.resourceName) ) {
+								filteredResourceList.add(res.resourceName);
+							}
+						} else {
+							// no resource filtering - add it
+							filteredResourceList.add(res.resourceName);
+						}
 					}
 				}
         	}

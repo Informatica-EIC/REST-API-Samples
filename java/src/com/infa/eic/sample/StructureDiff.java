@@ -36,7 +36,7 @@ public class StructureDiff {
     String mail_smtp_port;
     String mail_user;
     String mail_pwd;    
-    List<String> recipients;
+    List<String> recipients = new ArrayList<String>(); //({});
     String mail_smtp_auth;  
     String mail_smtp_socketFactory_port;    
     String mail_smtp_socketFactory_class;  
@@ -89,7 +89,10 @@ public class StructureDiff {
 			mail_smtp_port = prop.getProperty("mail.smtp.port");
 			mail_user = prop.getProperty("mail.user");
 			mail_pwd = prop.getProperty("mail.pwd");
-			recipients = new ArrayList<String>(Arrays.asList(prop.getProperty("mail.recipients").split(",")));
+			String mailRecipients = prop.getProperty("mail.recipients");
+			if (mailRecipients != null && mailRecipients.length() > 0) {
+				recipients = new ArrayList<String>(Arrays.asList(prop.getProperty("mail.recipients").split(",")));
+			}
 			mail_smtp_auth=prop.getProperty("mail.smtp.auth", "false");
 			mail_smtp_socketFactory_port=prop.getProperty("mail.smtp.socketFactory.port");
 			mail_smtp_socketFactory_class=prop.getProperty("mail.smtp.socketFactory.class");
@@ -434,7 +437,7 @@ public class StructureDiff {
 		writer.flush();
 		
 		// prepare & send the email
-		if (changes>0 && ! (mail_smtp_host.isEmpty())) {
+		if (changes>0 && ! (mail_smtp_host.isEmpty() || recipients.isEmpty())) {
 			/**
 			 * mail result
 			 */
@@ -505,7 +508,11 @@ public class StructureDiff {
 			  }  
 		  
 		} else {
-			System.out.println("no changes - no email sent");
+			if (changes == 0) {
+				System.out.println("\tno changes - no email sent");
+			} else {
+				System.out.println("\tchanges found - no mail server or recipients configured: host=" + mail_smtp_host + " recipients=" + recipients);
+			}
 		}
 		
 		this.closeCSVFile();

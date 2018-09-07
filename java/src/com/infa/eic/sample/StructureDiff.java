@@ -108,7 +108,6 @@ public class StructureDiff {
 			// @todo - figure out a better way to do this - like exporting the column headers in the report
 			includeAxonLinks = Boolean.parseBoolean(prop.getProperty("includeAxonTermLink", "false"));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 			
@@ -191,7 +190,6 @@ public class StructureDiff {
 			
 			
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
@@ -202,15 +200,10 @@ public class StructureDiff {
     StringBuffer messageTEXT = new StringBuffer();
 
 	/**
-	 * @param fromFile
-	 * @param toFile
-	 * @param sd
-	 * @throws IOException
+	 * look at the changes made - if there are changes, send email with diff report
 	 * @throws RuntimeException
 	 * 
-	 * TODO:  don't seperate the deltas by type - process them in sequence - when a single table as delete/update/insert they will be grouped together
 	 */
-	@SuppressWarnings("unchecked")
 	protected void processDiffs()
 			throws IOException, RuntimeException {
 		StringBuffer message = new StringBuffer();
@@ -234,204 +227,15 @@ public class StructureDiff {
 		
 		
 		// analyze the deltas... (testing - to get better results than a standard diff process)
+		// note:  this will update messageHTMLx (via writeDiff() methods)
 		changes = analyzeChanges(deltas);
 		
 //		System.out.println("messageTEXT=");
 //		System.out.println(messageTEXT);
-
 		
 //		System.out.println("messageHTML=");
 //		System.out.println(messageHTMLx);
 
-/**		
-		List<Chunk> inserts = getInsertsFromOriginal();
-		List<Chunk> updates = getChangesFromOriginal();
-		List<Chunk> deletes = getDeletesFromOriginal();
-		
-		changes = deltas.size();
-		int deleteCount = 0;
-		int insertCount = 0;
-		int updateCount = 0;
-		
-		messageHTML.append("<h2>Enterprise Data Catalog Change report:  resource=" + resourceName + "</h2>\n");
-		messageHTML.append("<h3>Comparing: " + leftName + " to " + rightName   + "</h3>\n");
-		messageHTML.append("<p/>\n");
-		if (this.includeAxonLinks) {
-			messageHTML.append("<table border=\"1\"><tr><td>Change Type</td><td>Database</td><td>Schema</td><td>Table</td><td>Column</td><td>Type</td><td>Length</td><td>Scale</td><td>Axon Term</td><td>Axon Term Id</td></tr>\n");
-		} else {
-			messageHTML.append("<table border=\"1\"><tr><td>Change Type</td><td>Database</td><td>Schema</td><td>Table</td><td>Column</td><td>Type</td><td>Length</td><td>Scale</td></tr>\n");			
-		}
-		System.out.println("total changes (groups): " + deltas.size() + " inserts:" + inserts.size() + " updates:" + updates.size() + " deletes:" + deletes.size());
-		message.append("total changes (groups): " + deltas.size() + " inserts:" + inserts.size() + " updates:" + updates.size() + " deletes:" + deletes.size() + "\n");
-		//			System.out.println(deltas);
-		
-		
-		
-		
-		// iterate over all deleted objects
-		if (deletes.size()>0) {
-			System.out.println("deleted:");
-			message.append("deleted: " + "\n");			
-		}
-		for (Delta delta : deltas) {
-			if (delta.getType() == Delta.TYPE.DELETE) {
-//				System.out.println("deleted:");
-//				message.append("deleted: " + "\n");
-//				int pos = 0;
-				for (String row: (List<String>) delta.getOriginal().getLines()) {
-					// multiple updates
-					System.out.println("\tdeleted: " + row);
-					message.append("\tdeleted: " + row + "\n");
-					String parts[]= row.split("\\|",-1);
-//					System.out.println("parts: " + parts.length + "==" + java.util.Arrays.toString(parts));
-					messageHTML.append("<tr><td><font color=\"red\">" + delta.getType().toString() + "</font></td>");
-					for (String part: parts) {
-						messageHTML.append("<td><font color=\"red\">" + part +"</td></td>");
-					}
-					messageHTML.append("</tr>\n");
-					writer.writeNext(ObjectArrays.concat(new String[] {delta.getType().toString()}, parts, String.class));
-//					pos++;
-					deleteCount++;
-				}
-			}
-		}
-
-		
-		// iterate over all updated objects
-		if (updates.size()>0) {
-			System.out.println("updated:");
-			message.append("updated: " + "\n");			
-		}
-
-		// Changes (we need to show the before / after to see the difference)
-		for (Delta delta : deltas) {
-			if (delta.getType() == Delta.TYPE.CHANGE) {
-//				System.out.println("update:");
-				int pos = 0;
-				
-				// test - get the lines(changes) for the from and to
-				@SuppressWarnings("unchecked")
-				List<String> fromLines=(List<String>)delta.getOriginal().getLines();
-				List<String> toLines=(List<String>)delta.getRevised().getLines();
-				System.out.println("changes: fromSize=" + fromLines.size() + " toSize=" + toLines.size());
-				
-				// refactor - add 2 lines for each change...  the before + after
-				for (String row: (List<String>) delta.getOriginal().getLines()) {
-					// multiple updates
-					
-					String fromParts[];
-					String toParts[];
-					
-					// odd case - the from and to delta arrays are a different size
-					if (pos>=delta.getRevised().getLines().size()) {
-						fromParts= row.split("\\|", -1);
-						toParts=new String[] { "", "", "", "", "", "", "" };
-						System.out.println("\t   from: " + row );
-						System.out.println("\t     to: " + "null");
-
-//						System.out.println("danger...");
-					} else {
-					String toRow = (String) delta.getRevised().getLines().get(pos);
-					System.out.println("\t   from: " + row);
-					message.append("\t   from: " + row + "\n");
-					
-					
-					System.out.println("\t     to: " + delta.getRevised().getLines().get(pos));
-					fromParts= row.split("\\|", -1);
-//					String toRow = (String) delta.getRevised().getLines().get(pos);
-					toParts= toRow.split("\\|", -1); 
-					message.append("\t     to: " + toRow + "\n");
-
-					messageHTML.append("<tr><td>" + delta.getType().toString() + " from" + "</td>");
-					int partNum = 0;
-					for (String part: fromParts) {
-						String toPart="";
-						if (toParts.length>= partNum+1) {
-							toPart = toParts[partNum];
-						}
-						
-						if (! part.equalsIgnoreCase(toPart)) {
-							messageHTML.append("<td><font color=\"red\">" + part +"</font></td>");
-						} else {
-							messageHTML.append("<td>" + part +"</td>");
-						}
-						partNum++;
-					}
-					messageHTML.append("</tr>\n");
-					messageHTML.append("<tr><td>" + delta.getType().toString() + " to" + "</td>");
-					partNum = 0;
-					for (String part: toParts) {
-						// get the equivalent from part (which could be null)
-						String fromPart = "";
-//						System.out.println("checking:  partNum=" + partNum + " in fromParts size=" + fromParts.length + " " + fromParts.toString());
-//						System.out.println("\t" + fromParts[partNum]);
-						if (fromParts.length>= partNum+1) {
-							fromPart = fromParts[partNum];
-						}
-//						if (! part.equalsIgnoreCase(fromParts[partNum])) {
-						if (! part.equalsIgnoreCase(fromPart)) {
-							messageHTML.append("<td><font color=\"red\">" + part +"</font></td>");
-						} else {
-							messageHTML.append("<td>" + part +"</td>");
-						}
-						partNum++;
-					}
-					messageHTML.append("</tr>\n");
-					}
-
-					
-//					String actionArr[] = new String[] { Delta.TYPE.CHANGE.toString() + " from"};
-					
-
-//					System.out.println("parts?=" + fromParts.length);
-						
-					writer.writeNext(ObjectArrays.concat(new String[] { Delta.TYPE.CHANGE.toString() + " from"}, fromParts, String.class));
-					writer.writeNext(ObjectArrays.concat(new String[] { Delta.TYPE.CHANGE.toString() + " to"}, toParts, String.class));
-
-					//						System.out.println("\t  to: " + delta.getRevised());
-					pos++;
-					updateCount++;
-
-				}
-			}
-		}
-
-		// iterate over all added objects
-		if (inserts.size()>0) {
-			System.out.println("added:");
-			message.append("added: " + "\n");			
-		}
-		for (Delta delta : deltas) {
-			if (delta.getType() == Delta.TYPE.INSERT) {
-//				System.out.println("added:");
-				int pos = 0;
-				for (String row: (List<String>) delta.getRevised().getLines()) {
-					// split the row into the parts...
-					String parts[]= row.split("\\|", -1);
-
-					// add the change type to the array of fields to write
-					writer.writeNext(ObjectArrays.concat(new String[] {delta.getType().toString()}, parts, String.class));
-					
-					System.out.println("\t  added: " + row);
-					message.append("\t  added: " + row + "\n");
-					
-					messageHTML.append("<tr><td><font color=\"green\">" + delta.getType().toString() + "</font></td>");
-					for (String part: parts) {
-						messageHTML.append("<td><font color=\"green\">" + part +"<font></td>");
-					}
-					messageHTML.append("</tr>\n");
-
-					
-					pos++;
-					insertCount++;
-				}
-			}
-		}
-		
-		System.out.println("\ntotal changes (actual rows): " + (deleteCount + updateCount + insertCount) + " deleted=" + deleteCount + " changed=" + updateCount + " added=" + insertCount);
-		message.append("total changes: (actual rows): " + (deleteCount + updateCount + insertCount) + " deleted=" + deleteCount + " changed=" + updateCount + " added=" + insertCount);
-
- */
 		messageHTMLx.append("</table>\n");			
 
 		writer.flush();
@@ -565,6 +369,7 @@ public class StructureDiff {
 	 *  
 	 * 
 	 */
+	@SuppressWarnings("unchecked")
 	private int analyzeChanges(List<Delta> theDeltas) {
 		// we can't trust the changes
 		/**
@@ -577,25 +382,14 @@ public class StructureDiff {
 		 * 
 		 */
 		
-		int dchunks=0;
-		int ichunks=0;
-		int uchunks=0;
 		int dtot=0;
 		int itot=0;
 		int utot=0;
-		int extraDeletes=0;
-		int extraInserts=0;
-		int actChanges=0;
-		
 		Map<String, String> matches = new HashMap<String, String>();
-		
-		StringBuffer logMessage = new StringBuffer();
-		StringBuffer emailBody = new StringBuffer();
 		
 		for (Delta delta : theDeltas) {
 			// what is the type (delete and insert) no extra work needed
 			if (delta.getType() == Delta.TYPE.INSERT) {
-				ichunks++;
 				itot+= delta.getRevised().getLines().size();
 				for (String row: (List<String>) delta.getRevised().getLines()) {
 //					System.out.println(">>>INSERT: " + row);	
@@ -605,7 +399,6 @@ public class StructureDiff {
 
 //				System.out.println(">>>INSERT: " + );
 			} else if (delta.getType() == Delta.TYPE.DELETE) {
-				dchunks++;
 				dtot+= delta.getOriginal().getLines().size();
 				for (String row: (List<String>) delta.getOriginal().getLines()) {
 //					System.out.println("<<<DELETE: " + row);	
@@ -615,9 +408,8 @@ public class StructureDiff {
 				}
 
 			} else if (delta.getType() == Delta.TYPE.CHANGE) {
-				uchunks++;
 				// get the largest from original & revised
-				int orig = delta.getOriginal().getLines().size();
+//				int orig = delta.getOriginal().getLines().size();
 				int rev = delta.getRevised().getLines().size();
 				List<Integer> rMatches = new ArrayList<Integer>();
 				
@@ -659,16 +451,12 @@ public class StructureDiff {
 //						System.out.println("<><> from: " + left);
 //						System.out.println("<><>   to: " + delta.getRevised().getLines().get(rCount));
 						writeDiff("CHANGE", left, (String)delta.getRevised().getLines().get(rCount));
-
-						actChanges++;
 					} else {
 						// delete - not a change
 //								System.out.println("add a delete delta " + lCount);
 						dtot++;
 //						System.out.println("<!<<DELETE: " + left);	
 						writeDiff("DELETE", left);
-
-						extraDeletes++;
 					}
 							
 					lCount++;
@@ -689,9 +477,6 @@ public class StructureDiff {
 						itot++;
 //						System.out.println("<!>>INSERT: " + delta.getRevised().getLines().get(rMatch));	
 						writeDiff("INSERT", (String) delta.getRevised().getLines().get(rMatch));
-					
-						extraInserts++;
-//							System.out.println(delta.getRevised().getLines().get(rMatch));
 					}
 				}
 
@@ -814,7 +599,6 @@ public class StructureDiff {
 //			bw.flush();
 			
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 
@@ -830,7 +614,6 @@ public class StructureDiff {
 			writer.flush();
 			writer.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

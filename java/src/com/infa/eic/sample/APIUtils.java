@@ -15,7 +15,6 @@ import javax.swing.JPasswordField;
 import com.infa.products.ldm.core.rest.v2.client.api.ModelInfoApi;
 import com.infa.products.ldm.core.rest.v2.client.api.ObjectInfoApi;
 import com.infa.products.ldm.core.rest.v2.client.api.ObjectModificationApi;
-import com.infa.products.ldm.core.rest.v2.client.invoker.ApiException;
 import com.infa.products.ldm.core.rest.v2.client.models.FactResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.LinkedObjectResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.ObjectResponse;

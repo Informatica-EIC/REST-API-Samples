@@ -1,8 +1,5 @@
 package com.infa.eic.sample;
 
-import java.io.BufferedWriter;
-import java.io.Console;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
@@ -10,29 +7,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import javax.swing.JOptionPane;
-import javax.swing.JPasswordField;
-
-import com.infa.products.ldm.core.rest.v2.client.invoker.ApiResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.EmbeddedFact;
 import com.infa.products.ldm.core.rest.v2.client.models.EmbeddedObject;
-import com.infa.products.ldm.core.rest.v2.client.models.FactResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.Link;
-import com.infa.products.ldm.core.rest.v2.client.models.LinkPropertyResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.LinkedObjectResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.Links;
-import com.infa.products.ldm.core.rest.v2.client.models.ObjectIdRequest;
 import com.infa.products.ldm.core.rest.v2.client.models.ObjectResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.ObjectsResponse;
-import com.infa.products.ldm.core.rest.v2.client.utils.ObjectAdapter;
-import com.opencsv.CSVWriter;
 
 /**
  * this program creates a file which represents the data structure of an EIC resource
@@ -87,7 +72,6 @@ public class DBStructureExport {
 		String dbName;
 		String schemaName;
 		String tableName;
-		int count=0;
 		long start = System.currentTimeMillis();
 //		String[]
 		
@@ -97,10 +81,6 @@ public class DBStructureExport {
 				
 		int total=1000;
 		int offset=0;
-		//Get objects in increments of 300
-//		final int pageSize=300;
-		count = 0;
-				
 		//Standard Lucene style object query to get assets of a given type from a given resource.
 		String query=APIUtils.CORE_RESOURCE_NAME+":\""+resourceName+"\" AND (" +
 				"core.allclassTypes:\""+type+"\"" +
@@ -118,7 +98,6 @@ public class DBStructureExport {
 					
 			//Iterate over returned objects and add them to the return hashmap
 			for(ObjectResponse or: response.getItems()) {
-				count++;
 				String colName=APIUtils.getValue(or,APIUtils.CORE_NAME);
 				String array[]= or.getId().split("/");
 				dbName = array[2];
@@ -385,7 +364,6 @@ public class DBStructureExport {
 			Charset charset = Charset.forName("UTF-8");
 			Files.write(toPath, theStructure, charset);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -447,7 +425,6 @@ public class DBStructureExport {
 			rep.writeStructureToFile(fileName, dbStructureLines);
 
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		long end = System.currentTimeMillis();
@@ -460,23 +437,6 @@ public class DBStructureExport {
 
 		System.out.println("db structure::end " +end + " elapsed: " + timeTaken);
 		
-		/**
-		 * 
-		//testing
-		System.out.println("\n***********************************************");
-		List<String> dbStructureViaRel;
-		try {
-			dbStructureViaRel=rep.getResourceStructureUsingRel(resourceName, 500);
-			String fileName = outFolder + "/" + resourceName + "_" + version + "_rels.txt";
-			System.out.println("writing file to: _" + fileName);
-			rep.writeStructureToFile(fileName, dbStructureViaRel);
-
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		 */
-
 
 	}
 	

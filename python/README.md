@@ -27,5 +27,6 @@ Sample Programs in the Project
 * `similarityReport.py`: v10.2.1+ utility to find & export all columns/fields with similar links
 * `encodeUser.py`: simple program to prompt for a userid/pwd and optionally a security domain and create a base64 encoded string that can be used for authentication in the http header.  e.g. ```"Authorization": "Basic QWRtaW5pc3RyYXRvcjpBZG1pbmlzdHJhdG9y"```
 * `dbSchemaReplicationLineage.py`: provides the ability to link tables/columns in a database schema that are replicated to other schemas/databases & no scanner exists to automatcially document these relationships.  (e.g. sqoop, scripts/code, goldengate ...)
+* `externalDBLinker.py`: script to generate custom lineage for any tables/columns created within an ExternalDatabase/ExternalSchema (often happens with Oracle (dblink) and SQLServer databases (references to databases in views)
 
 

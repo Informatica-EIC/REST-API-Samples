@@ -26,8 +26,8 @@ import time
 # ******************************************************
 # change these settings for your catalog service
 # ******************************************************
-#catalogServer='http://napslxapp01:9085'
-catalogServer='http://18.236.138.21:9085'
+catalogServer='http://napslxapp01:9085'
+#catalogServer='http://18.236.138.21:9085'
 url = catalogServer + '/access/2/catalog/data/objects'
 header = {"Accept": "application/json"} 
 parameters = {'q': 'core.classType:com.infa.ldm.relational.ExternalDatabase' 
@@ -163,18 +163,21 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
             tableMatchCount=0
             # possible matching tables
             for tableItem in tResp.json()["items"]:
-                theTabId = tableItem["id"]
+                fromTableId = tableItem["id"]
+                fromSchemaName = fromTableId.split('/')[-2].lower()
                 #foundTabId=''
                 #foundTabId = tableItem["id"]
-                if theTabId != inId and theTabId.count('/')==4:        # filter out comparing against itself + counting the / chars - 4 = normal db, 5=external db (disregard here)
-                    print('\t\tchecking ' + theTabId)
+                if fromTableId != inId and fromTableId.count('/')==4:        # filter out comparing against itself + counting the / chars - 4 = normal db, 5=external db (disregard here)
+                    print('\t\tchecking ' + fromTableId)
                     #print("could be this one...." + foundTabId + " << " + inId)
-                    theName = theTabId.split('/')[-1]
-                    if theName.lower()==tableName.lower():
+                    theName = fromTableId.split('/')[-1]
+                    if theName.lower()==tableName.lower() and schemaName.lower()==fromSchemaName.lower():
                         tableMatchCount += 1
-                        foundTabId = theTabId
-                        print("\t\ttable name matches..." + theName + "==" + tableName + " " + inId + " " + foundTabId + " count/" + str(theTabId.count('/')))
-                        # iterate over the dstId's to get related columns...
+                        foundTabId = fromTableId
+                        print("\t\ttable name matches..." + theName + "==" + tableName + " " + inId + " " + foundTabId + " count/" + str(fromTableId.count('/')))
+                    else:
+                        print("\t\tno match...schema match " + schemaName + "==" + fromSchemaName + ":" + str(schemaName.lower()==fromSchemaName.lower()))
+                        #print("\t\tno match found: schema match(" + schemaName + ")?==" + schemaName.lower()==fromSchemaName.lower())
             
             print("\t\ttotal matching tables=" + str(tableMatchCount) + " inId:" + inId)
             if tableMatchCount==1:

@@ -21,6 +21,7 @@ import csv
 import platform
 import edcutils
 import time
+import logging
 
 
 # ******************************************************
@@ -128,8 +129,13 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
      
     #  bug in the relationships api call - the items collection sould be "items" (with quotes)
     if lineageJson.startswith('{items'):
+        # bug in 10.2.1 and before
         # replace items with "items" - for just the first occurrence (note:  should be fixed after 10.2.1
         lineageJson = json.loads(lineageJson.replace('items', '"items"', 1))
+    else:
+        # 10.2.1u1 + json is escaped properly
+        lineageJson = json.loads(lineageJson)
+        
 
     # for each item in the lineage resultset        
     for lineageItem in lineageJson["items"]:
@@ -234,6 +240,23 @@ def main():
     columnLinksCreated=0
     errorsFound=0
     
+    '''
+    logger = logging.getLogger('externalDBLinker')
+    logger.setLevel('DEBUG')
+
+    file_log_handler = logging.FileHandler('logfile.log')
+    logger.addHandler(file_log_handler)
+    
+    stderr_log_handler = logging.StreamHandler()
+    logger.addHandler(stderr_log_handler)
+    
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_log_handler.setFormatter(formatter)
+    stderr_log_handler.setFormatter(formatter)
+    
+    logger.info('Info message')
+    logger.error('Error message')
+    '''
     
     columnHeader=["Association", "From Connection","To Connection","From Object","To Object"]
     if str(platform.python_version()).startswith("2.7"):
@@ -283,5 +306,4 @@ def main():
 # call main - if not already called or used by another script 
 if __name__== "__main__":
     main()            
-
 

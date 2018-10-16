@@ -21,6 +21,7 @@ import csv
 import platform
 import edcutils
 import time
+import sys
 # import logging
 
 
@@ -241,6 +242,8 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
                 #print("\t\t\tcolumns linked=" + str(tabColsLinked))
             else:
                 print("\t\tmutlple possible matches found (" + str(tableMatchCount) + ") no links will be created")
+            # flush the console buffer - for tailing the stdout log
+            sys.stdout.flush()
                 
     print("external database: " + dbName + " processed: tab/col links created: " + str(tabLinks) + "/" + str(colLinks) + " errors:" + str(errors))
     print("")
@@ -313,6 +316,8 @@ def main():
         tableLinksCreated += tabLinks
         columnLinksCreated += colLinks
         errorsFound += errors
+        
+        sys.stdout.flush() 
                 
     
     fCSVFile.close

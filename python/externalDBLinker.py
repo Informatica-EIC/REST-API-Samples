@@ -21,7 +21,7 @@ import csv
 import platform
 import edcutils
 import time
-import logging
+# import logging
 
 
 # ******************************************************
@@ -35,8 +35,11 @@ parameters = {'q': 'core.classType:com.infa.ldm.relational.ExternalDatabase'
               , 'offset': 0
               , 'pageSize': 100}
 uid='Administrator'
-#pwd='admin'
-pwd=uid;
+pwd='Administrator'
+#pwd=uid;
+
+# alternate for finding links for a specific resource/db
+# core.classType:com.infa.ldm.relational.ExternalDatabase and core.resourceName:SybDMSDev_dmproddb and core.name:External
 
 # the csv lineage file to write to
 csvFileName = "out/externalDBLinks.csv"
@@ -173,17 +176,36 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
                 fromSchemaName = fromTableId.split('/')[-2].lower()
                 #foundTabId=''
                 #foundTabId = tableItem["id"]
+                #print("rs-" + fromTableId + " compared with " + inId);
                 if fromTableId != inId and fromTableId.count('/')==4:        # filter out comparing against itself + counting the / chars - 4 = normal db, 5=external db (disregard here)
                     print('\t\tchecking ' + fromTableId)
                     #print("could be this one...." + foundTabId + " << " + inId)
-                    theName = fromTableId.split('/')[-1]
-                    if theName.lower()==tableName.lower() and schemaName.lower()==fromSchemaName.lower():
+                    theName = fromTableId.split('/')[-1];
+                    '''
+                    # debug statements here
+                    print("debug theName=" + theName);
+                    print("debug tableName=" + tableName);
+                    print("debug schemaName=" + schemaName);
+                    print("debug fromSchemaName=" + fromSchemaName);
+                    print("debug fromSchemaName=" + fromSchemaName.lower());
+                    print("check1:" + str(theName.lower()==tableName.lower()) );
+                    print("check2:" + str(schemaName.lower()==fromSchemaName.lower()) );
+                    print("check2.5:" + str(schemaName=="") );                    
+                    print("check3:" + str(fromSchemaName=="dbo"));
+                    print("check4:" + str(schemaName=="" and fromSchemaName=="dbo"));
+                    print("check5:" + str(schemaName.lower()==fromSchemaName.lower() or ( schemaName=="" and fromSchemaName=="dbo") ) ) ;
+                    '''
+                    
+                     # the schema could be empyt - in that case it should match dbo - unless we have a way of knowing what the default schema is
+                    if theName.lower()==tableName.lower() and (schemaName.lower()==fromSchemaName.lower() or ( schemaName=="" and fromSchemaName=="dbo") ):
                         tableMatchCount += 1
                         foundTabId = fromTableId
                         print("\t\ttable name matches..." + theName + "==" + tableName + " " + inId + " " + foundTabId + " count/" + str(fromTableId.count('/')))
                     else:
-                        print("\t\tno match...schema match " + schemaName + "==" + fromSchemaName + ":" + str(schemaName.lower()==fromSchemaName.lower()))
+                        print("\t\tno match...schema match 1:" + theName + " 2:" + tableName + " 3:" + schemaName + " 4:" + fromSchemaName + ":" + str(schemaName.lower()==fromSchemaName.lower()))
                         #print("\t\tno match found: schema match(" + schemaName + ")?==" + schemaName.lower()==fromSchemaName.lower())
+                #else:
+                    #print("skipping this one");
             
             print("\t\ttotal matching tables=" + str(tableMatchCount) + " inId:" + inId)
             if tableMatchCount==1:

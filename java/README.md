@@ -26,3 +26,4 @@ Sample Programs in the Project
 * UltimateColumnLineageReport: this program retrieves the relational columns which have lineage information along with the origin column of the object.
 * CustomAttributeValuesCopier: this program copies a custom attribute value to another custom attribute value for each Columns, Tables and resources
 * ObjectFilteredByCustomAttributeValueReport: this program extract all the objects filtered with a specified custom attribute value
+* ModelLinker: creates links (either via REST API direct, or custom lineage) between data models (e.g. ERwin, PowerDesigner) and the corresponding DBMS object

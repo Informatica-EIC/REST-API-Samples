@@ -41,7 +41,7 @@ settings
 
 if you do not want to compile/run from source - an executable version of this utility is available for download.
 
-- from linux:  `wget -O  wget -O catalog_utils.zip https://d398h.app.goo.gl/edcUtils` 
+- from linux:  `wget -O catalog_utils.zip https://d398h.app.goo.gl/edcUtils` 
 - or download directly from <https://d398h.app.goo.gl/edcUtils>
   - unzip catalog_utils.zip
   - chmod +x *.sh

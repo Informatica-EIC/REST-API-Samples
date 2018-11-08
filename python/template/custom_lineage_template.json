@@ -1,0 +1,29 @@
+{
+	"resourceIdentifier": {
+		"resourceName": "",
+		"description": " ",
+		"resourceTypeId": "CustomLineage",
+		"resourceTypeName": "Custom Lineage",
+		"resourceTypeVersion": ""
+	},
+	"scannerConfigurations": [{
+			"scanner": {
+				"scannerId": "LineageScanner",
+				"providerTypeId": "CORE",
+				"providerTypeName": "Metadata Load"
+			},
+			"enabled": true,
+			"configOptions": [{
+					"optionId": "File",
+					"optionValues": [""]
+				}, {
+					"optionId": "AutoAssignConnections",
+					"optionValues": [true]
+				}, {
+					"optionId": "Memory",
+					"optionValues": ["Low"]
+				}
+			]
+		}
+	]
+}

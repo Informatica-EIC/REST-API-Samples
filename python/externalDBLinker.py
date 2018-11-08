@@ -34,20 +34,30 @@ url = catalogServer + '/access/2/catalog/data/objects'
 header = {"Accept": "application/json"} 
 parameters = {'q': 'core.classType:com.infa.ldm.relational.ExternalDatabase' 
               , 'offset': 0
-              , 'pageSize': 100}
+              , 'pageSize': 1000}
 uid='Administrator'
 pwd='Administrator'
-#pwd=uid;
 
 # alternate for finding links for a specific resource/db
 # core.classType:com.infa.ldm.relational.ExternalDatabase and core.resourceName:SybDMSDev_dmproddb and core.name:External
 
 # the csv lineage file to write to
-csvFileName = "out/externalDBLinks.csv"
+csvFileName="ABS_dbms_externalDBLinks.csv"
+csvFilePath="out/"
+
+
+# resource import settings
+executeEDCImport=True
+lineageResourceName="auto3_lineage"
+lineageResourceTemplate="template/custom_lineage_template.json"
+waitToComplete=False
+
+#csvFileName = "out/ABSQL_externalDBLinks.csv"
 
 # ******************************************************
 # end of parameters that should be changed 
 # ******************************************************
+outputFile=csvFilePath + csvFileName
 
 
 def getColumnsForTable(tableId):
@@ -159,8 +169,8 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
             q="core.classType:(com.infa.ldm.relational.Table or com.infa.ldm.relational.View)  and core.name_lc_exact:" + tableName
             if dbUnknown and schemaName=='':
                 q=q+ ' and core.resourceName:' + resName 
-            if dbUnknown==False:
-                q=q+ ' and ' + dbName
+            #if dbUnknown==False:
+            #    q=q+ ' and ' + dbName
             q=q+ ' and core.resourceType:"' + resType + '"'
             tableSearchParms={'q': q, 'offset': 0, 'pageSize': 100}
             print("\t\tquery=" + str(tableSearchParms))
@@ -285,10 +295,10 @@ def main():
     
     columnHeader=["Association", "From Connection","To Connection","From Object","To Object"]
     if str(platform.python_version()).startswith("2.7"):
-        fCSVFile = open(csvFileName,"w")
+        fCSVFile = open(outputFile,"w")
     else:
-        fCSVFile = open(csvFileName,"w", newline='', encoding='utf-8')
-    print("custom lineage file initialized. " + csvFileName)
+        fCSVFile = open(outputFile,"w", newline='', encoding='utf-8')
+    print("custom lineage file initialized. " + outputFile)
     colWriter=csv.writer(fCSVFile)
     colWriter.writerow(columnHeader)
     
@@ -329,6 +339,10 @@ def main():
     # end of main()
     print("Finished - run time = %s seconds ---" % (time.time() - start_time))
     
+    # call the resource create/update/load function to get the data imported into EDC
+    if executeEDCImport:
+        edcutils.createOrUpdateAndExecuteResource(catalogServer, uid, pwd, lineageResourceName, lineageResourceTemplate, csvFileName, outputFile, waitToComplete)
+
 
 # call main - if not already called or used by another script 
 if __name__== "__main__":

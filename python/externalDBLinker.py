@@ -42,13 +42,13 @@ pwd='Administrator'
 # core.classType:com.infa.ldm.relational.ExternalDatabase and core.resourceName:SybDMSDev_dmproddb and core.name:External
 
 # the csv lineage file to write to
-csvFileName="ABS_dbms_externalDBLinks.csv"
+csvFileName="dbms_externalDBLinks.csv"
 csvFilePath="out/"
 
 
-# resource import settings
-executeEDCImport=True
-lineageResourceName="auto3_lineage"
+# resource import settings (used to create|update/upload file/start resource load)
+executeEDCImport=False
+lineageResourceName="externalDBlinker_lineage"
 lineageResourceTemplate="template/custom_lineage_template.json"
 waitToComplete=False
 

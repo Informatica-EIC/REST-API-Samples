@@ -35,6 +35,13 @@ then you can `tail -f externalLinker.log` to monitor progress
 ## Import to EDC
 create an instance of the "Custom Lineage" resource type and import/drop externalDBLinker.csv
 
+to create/update the resource directly in the catalog, upload the lineage file then execute the resource load, use the following settings:-
+- `executeEDCImport=True` - set to True to execute the import
+- `lineageResourceName=`  resource name to create/update
+- `lineageResourceTemplate="template/custom_lineage_template.json"` - template to use to create the resource
+
+when setting executeEDTImport=True - it will call `edcutils.createOrUpdateAndExecuteResource` 
+
 ## Other Notes
 should work on all platforms (linux/mac/windows) using either python 2.7 or 3.x
 

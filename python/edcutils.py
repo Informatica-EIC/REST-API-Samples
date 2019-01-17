@@ -5,11 +5,14 @@ utility functions for processing catalog objects
 
 @author: dwrigley
 '''
+
+
 import requests
 import json
 from requests.auth import HTTPBasicAuth
 import os.path
 # coding: utf8
+
 
 def getFactValue(item, attrName):
     """
@@ -39,9 +42,34 @@ def exportLineageLink(fromObject, toObject, linkType, csvFile):
     row=[linkType,"","",fromObject,toObject]
     csvFile.writerow(row)
     return
+   
+def getAllResource(url, user, pWd):
+    """
+    get the resource definition - given a resource name (and catalog url)
+    catalog url should stop at port (e.g. not have ldmadmin, ldmcatalog etc... or have v2 anywhere 
+    since we are using v1 api's
+    
+    returns rc=200 (valid) & other rc's from the get
+            resourceDef (json)
+            
+    """
+    
+    print("getting resource for catalog:-" + url + ' user=' + user)
+    apiURL=url + '/access/1/catalog/resources/'
+    #print("\turl=" + apiURL)
+    header = {"Accept": "application/json"} 
+    tResp = requests.get(apiURL, params={}, headers=header, auth=HTTPBasicAuth(user,pWd))
+    print("\tresponse=" + str(tResp.status_code))
+    if tResp.status_code == 200:
+        # valid - return the jsom
+        return tResp.status_code, json.loads(tResp.text)
+    else:
+        # not valid
+        return tResp.status_code, None
 
 
-def getResourceDef(url, user, pWd, resourceName):
+
+def getResourceDef(url, user, pWd, resourceName, sensitiveOptions=False):
     """
     get the resource definition - given a resource name (and catalog url)
     catalog url should stop at port (e.g. not have ldmadmin, ldmcatalog etc... or have v2 anywhere 
@@ -53,7 +81,9 @@ def getResourceDef(url, user, pWd, resourceName):
     """
     
     print("getting resource for catalog:-" + url + " resource=" + resourceName + ' user=' + user)
-    apiURL=url + '/access/1/catalog/resources/' + resourceName
+    apiURL=url + '/access/1/catalog/resources/' + resourceName 
+    if sensitiveOptions:
+        apiURL += "?sensitiveOptions=true"
     #print("\turl=" + apiURL)
     header = {"Accept": "application/json"} 
     tResp = requests.get(apiURL, params={}, headers=header, auth=HTTPBasicAuth(user,pWd))
@@ -96,13 +126,21 @@ def updateResourceDef(url, user, pWd, resourceName, resJson):
 
 
 def createResource(url, user, pWd, resourceName, resourceJson):
+    """
+    create a new resource based on the provided JSON
+
+    returns rc=200 (valid) & other rc's from the put
+            resourceDef (json)
+
+    """
     # create a new resource
     apiURL=url + '/access/1/catalog/resources/'
     header = {'content-type': "application/json"}
     print("\tcreating resource: " + resourceName)
     newResourceResp = requests.post(apiURL, data=json.dumps(resourceJson), headers=header, auth=HTTPBasicAuth(user,pWd))
     print("\trc=" + str(newResourceResp.status_code))
-    
+    print("\tbody="+ str(newResourceResp.text))
+   
     return newResourceResp.status_code
 
 
@@ -309,3 +347,143 @@ def createOrUpdateAndExecuteResource(url, user, pwd, resourceName, templateFileN
         print("resource input file: " + inputFileFullPath + " invalid or does not exist, exiting")
     
     
+
+def callGETRestEndpoint(apiURL, user, pWd):
+    """
+    this function call the URL  with a GET method and return the status code as well as the response body
+    returns rc=200 (valid) & other rc's from the get
+            resourceDef (json)
+    """ 
+    header = {"Accept": "application/json"} 
+    tResp = requests.get(apiURL, params={}, headers=header, auth=HTTPBasicAuth(user,pWd))
+    print("\tresponse=" + str(tResp.status_code))
+    if tResp.status_code == 200:
+        # valid - return the jsom
+        return tResp.status_code, json.loads(tResp.text)
+    else:
+        # not valid
+        return tResp.status_code, None 
+
+
+def getResourceObjectCount(url, user, pWd, resourceName):
+    """
+    get the resource object count - given a resource name (and catalog url)
+    """
+    
+    apiURL=url + '/access/2/catalog/data/objects?q=core.resourceName:' + resourceName
+    print("getting object count for catalog resource:-" + apiURL + " resource=" + resourceName + ' user=' + user)
+    return callGETRestEndpoint(apiURL, user, pWd)
+
+def getCatalogObjectCount(url, user, pWd):
+    """
+    get the resource object count - given a catalog url
+    """
+    
+    print("getting object count for catalog resource:-" + url + ' user=' + user)
+    apiURL=url + '/access/2/catalog/data/objects'
+    return callGETRestEndpoint(apiURL, user, pWd)
+
+def getCatalogResourceCount(url, user, pWd):
+    """
+    get the resource count - given a catalog url
+    """
+    
+    apiURL=url + '/access/2/catalog/data/objects?q=core.allclassTypes:core.Resource'
+    print("getting object count for catalog resource:-" + apiURL + ' user=' + user)
+    return callGETRestEndpoint(apiURL, user, pWd)
+
+def getReusableScannerConfig(url, user, pWd):
+    """
+    get the reusable configuration - given a catalog url
+    """
+    
+    apiURL=url + '/access/1/catalog/resources/reusablescannerconfigs'
+    print("getting the reusable configuration:-" + apiURL + ' user=' + user)
+    return callGETRestEndpoint(apiURL, user, pWd)
+
+
+
+def getCatalogCustomAttr(url, user, pWd):
+    """
+    call GET /access/2/catalog/models/attributes
+    this returns all attributes (system + custom)
+    filter for only the custom attributes (id startswith "com.infa.appmodels.ldm." 
+    """
+
+    resturl = url + '/access/2/catalog/models/attributes'
+    header = {"Accept": "application/json"}
+
+    total=1000  # initial value - set to > 0 - will be over-written by the count of objects returned
+    offset=0
+    page=0
+    pageSize=200
+
+    customAttrs = []
+
+    while offset<total:
+        page += 1
+        parameters = {'offset': offset, 'pageSize': pageSize}
+
+        # execute catalog rest call, for a page of results
+        resp = requests.get(resturl, params=parameters, headers=header, auth=HTTPBasicAuth(user,pWd))
+        status = resp.status_code
+        if status != 200:
+            # some error - e.g. catalog not running, or bad credentials
+            print("error! " + str(status) + str(resp.json()))
+            break
+
+        resultJson = resp.json()
+        total=resultJson['metadata']['totalCount']
+        print("objects found: " + str(total) + " processing:" + str(offset+1) + "-" + str(offset+pageSize) + " pagesize="+str(pageSize) + " currentPage=" + str(page) );
+
+        # for next iteration
+        offset += pageSize;
+
+        # for each attribute found...
+        for attrDef in resultJson["items"]:
+            #attrCount+=1
+            attrId = attrDef["id"]
+            if attrId.startswith("com.infa.appmodels.ldm."):
+                customAttrs.append(attrDef)
+
+    # end of while loop
+    #print("")
+    #print("Finished - run time = %s seconds ---" % (time.time() - start_time))
+    return customAttrs
+
+def createAttribute(url, user, pWd, attrJson):
+    """
+    create a new attribute
+    attrJSON must be in the form 
+        {
+          "items": [
+            {
+              "analyzer": "INT",
+              "boost": "LOWEST",
+              "classes": [
+                {
+                  "id": "string"
+                }
+              ],
+              "dataTypeId": "string",
+              "description": "string",
+              "facetable": false,
+              "multivalued": false,
+              "name": "string",
+              "searchable": false,
+              "sortable": false,
+              "suggestable": false
+            }
+          ]
+        }
+
+    """
+    apiURL=url + '/access/2/catalog/models/attributes/'
+    header = {'content-type': "application/json"}
+    print("\tcreating custom attribute: " + attrJson['items'][0]['name'])
+    newAttrResp = requests.post(apiURL, data=json.dumps(attrJson), headers=header, auth=HTTPBasicAuth(user,pWd))
+    print("\trc=" + str(newAttrResp.status_code))
+    print("\tbody="+ str(newAttrResp.text))
+    print (attrJson)
+
+    return newAttrResp.status_code

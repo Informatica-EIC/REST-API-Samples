@@ -15,6 +15,8 @@ import java.util.*;
 import java.util.Date;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
+
+import org.apache.commons.io.comparator.NameFileComparator;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -595,7 +597,10 @@ public class ResourceWatch {
 		File dbStructDir = new File(dbsOutFolder);
 		File[] files = dbStructDir.listFiles();
 		if (files != null) {
-			Arrays.sort(files, Comparator.comparingLong(File::lastModified).reversed());
+			// bugfix - sort by file name, not by lastModified (if someone touched/edited an older file)
+			// Arrays.sort(files, Comparator.comparingLong(File::lastModified).reversed());
+			Arrays.sort(files, NameFileComparator.NAME_INSENSITIVE_REVERSE);
+
 			
 			// now iterate over all files - looking for starts with resourceNameToCheck
 			for (File aFile: files) {

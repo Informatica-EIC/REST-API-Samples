@@ -33,12 +33,7 @@ by default - all log messages are written to the console (stdout) to re-direct t
 then you can `tail -f externalLinker.log` to monitor progress
 
 ## Import to EDC
-either
-- create an instance of the "Custom Lineage" resource type and import/drop externalDBLinker.csv
-- created a resource using the rest api
-    - set variable `executeEDCImport=True` and 
-    - set value for `lineageResourceName` for the resource to create/update
-    - the file `template/custom_lineage_template.json` is used to create the custom lineage resource
+create an instance of the "Custom Lineage" resource type and import/drop externalDBLinker.csv
 
 ## Other Notes
 should work on all platforms (linux/mac/windows) using either python 2.7 or 3.x

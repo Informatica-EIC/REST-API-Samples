@@ -23,7 +23,7 @@ start_time = time.time()
 # ******************************************************
 catalogServer = 'http://napslxapp01:9085'
 uid = 'Administrator'
-pwd = '!nfa20l8^'
+pwd = 'Administrator'
 # pwd=uid;
 pageSize = 500    # number of objects for each page/chunk
 # ******************************************************

@@ -31,7 +31,7 @@ import com.google.gson.GsonBuilder;
 
 
 public class ResourceWatch {
-    public static final String version="1.2";
+    public static final String version="1.3";
 
 	Integer waitTime = 0;
 //	Integer initialTime = 300;
@@ -43,12 +43,14 @@ public class ResourceWatch {
 	FileHandler fh;
 	String glossary;
 	String resourceTypes;
-	String resourceFilter;
+	String resourceFilter="";
 	String userName;
 	String pwd;
 	String dbsOutFolder;
 	Integer pageSize = 100;
 	boolean includeAxonTermLink=false;
+	String dbExtractApiType="objects";
+	boolean excludeExternalDBObjects=true;
 	
 	public void setOutFolder(String theFolder) {
 		this.dbsOutFolder = theFolder;
@@ -120,32 +122,11 @@ public class ResourceWatch {
 	 * @param propertyFile name/location of the propoerty file to use for controlling settings
 	 */
 	ResourceWatch(String propertyFile) {
-//		System.out.println("Constructor:" + propertyFile);
         System.out.println(this.getClass().getSimpleName() + " " + version +  " initializing properties from: " + propertyFile);
 		
 		// store the property file - for passing to the diff process (email properties)
 		propertyFileName = propertyFile;
 		
-/**		
-		// setup the logger
-		// @todo add file based logger (currently messages are only written to the console
-		try {
-			logger = Logger.getLogger("EICResourceWatch");  
-			logger.setUseParentHandlers(false);
-
-		     // This block configure the logger with handler and formatter  
-		     fh = new FileHandler("eicResourceWatcher_" + String.valueOf(System.currentTimeMillis())+ ".log");  
-		     logger.addHandler(fh);
-		     SimpleFormatter formatter = new SimpleFormatter();  
-		     fh.setFormatter(formatter);  
-			 logger.info("reading property file: " +propertyFile);
-
-	    } catch (SecurityException e) {  
-	        e.printStackTrace();  
-	    } catch (IOException e) {  
-	        e.printStackTrace();  
-	    }  
-**/
 		try {
 			
 			
@@ -171,6 +152,12 @@ public class ResourceWatch {
 			// only add to resourcesToWatch - if an entry was made for resourceFilter
 			if (resourceFilter.length() > 0) {
 				resourcesToWatch = new ArrayList<String>(Arrays.asList(resourceFilter.split(",")));
+			}
+			
+			dbExtractApiType = prop.getProperty("dbstruct.processtype");
+			excludeExternalDBObjects = Boolean.parseBoolean(prop.getProperty("dbstruct.excludeExternalDBObjects"));
+			if (! excludeExternalDBObjects) {
+				System.out.println("Warning: external database columns will be exported");
 			}
 			
 			pageSize=Integer.parseInt(prop.getProperty("pagesize", "300"));
@@ -278,7 +265,6 @@ public class ResourceWatch {
 				        	sd.processDiffs();
 							
 						} catch (IOException e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 
@@ -345,12 +331,23 @@ public class ResourceWatch {
 			// we need to add the /2 here - since this watcher uses v1 for resource stuff
 			DBStructureExport dbs = new DBStructureExport(restURL + "/2", userName, pwd);
 			dbs.setIncludeAxonTermLinks(includeAxonTermLink);
-//			List<String> dbStruct = dbs.getResourceStructure(resourceName, this.pageSize);
-			List<String> dbStruct = dbs.getResourceStructureUsingRel(resourceName, this.pageSize);
-			dbs.writeStructureToFile(fileName, dbStruct);
+			if (! this.excludeExternalDBObjects) {
+				// means that external objects will be included
+				dbs.setExcludeExtDbObjects(excludeExternalDBObjects);
+			}
+
+			// call the structure export - depending on the technique that is configured
+			if (dbExtractApiType.equalsIgnoreCase("objects")) {
+				System.out.println("\tcalling  getResourceStructure");
+				List<String> dbStruct = dbs.getResourceStructure(resourceName, this.pageSize);
+				dbs.writeStructureToFile(fileName, dbStruct);
+			} else {
+				System.out.println("\tcalling  getResourceStructureUsingRel");
+				List<String> dbStruct = dbs.getResourceStructureUsingRel(resourceName, this.pageSize);
+				dbs.writeStructureToFile(fileName, dbStruct);
+			}
 			return true;
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return false;
 		}
@@ -428,10 +425,8 @@ public class ResourceWatch {
             
 
 		} catch (ClientProtocolException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
@@ -552,7 +547,6 @@ public class ResourceWatch {
 							        	sd.processDiffs();
 										
 									} catch (IOException e) {
-										// TODO Auto-generated catch block
 										e.printStackTrace();
 									}
 
@@ -569,10 +563,8 @@ public class ResourceWatch {
             
 
 		} catch (ClientProtocolException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		if (!initialCall) {
@@ -600,7 +592,6 @@ public class ResourceWatch {
 			// bugfix - sort by file name, not by lastModified (if someone touched/edited an older file)
 			// Arrays.sort(files, Comparator.comparingLong(File::lastModified).reversed());
 			Arrays.sort(files, NameFileComparator.NAME_INSENSITIVE_REVERSE);
-
 			
 			// now iterate over all files - looking for starts with resourceNameToCheck
 			for (File aFile: files) {

@@ -11,6 +11,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.HttpClientBuilder;
+
 import com.infa.products.ldm.core.rest.v2.client.models.EmbeddedFact;
 import com.infa.products.ldm.core.rest.v2.client.models.EmbeddedObject;
 import com.infa.products.ldm.core.rest.v2.client.models.Link;
@@ -31,12 +38,19 @@ import com.infa.products.ldm.core.rest.v2.client.models.ObjectsResponse;
  *
  */
 public class DBStructureExport {
-    public static final String version="1.2";
+    public static final String version="1.3";
 
 	
 	String sepa = "|";
 	Boolean includeAxonTermLink = false;
 	int axonLinks = 0;
+	
+	// for v1 calls store id/pwd
+	private String userId;
+	private String userPwd;
+	private String restUrl;
+	private List<String> externalDbIds = new ArrayList<String>();
+	boolean excludeExtDbItems = true;
 	
 	/** 
 	 * set the flag to include axon terms in the result
@@ -44,6 +58,16 @@ public class DBStructureExport {
 	 */
 	public void setIncludeAxonTermLinks(Boolean showAxonTerm) {
 		this.includeAxonTermLink = showAxonTerm;
+	}
+	
+	
+	/**
+	 * set the flag that determines if external DB objects should be excluded
+	 * default will be true
+	 * @param filterExcludeExtDbObjects
+	 */
+	public void setExcludeExtDbObjects(boolean filterExcludeExtDbObjects) {
+		this.excludeExtDbItems = filterExcludeExtDbObjects;
 	}
 
 	
@@ -56,10 +80,13 @@ public class DBStructureExport {
 	public DBStructureExport(String restUrl, String user, String pwd) {
 		System.out.println("\t" + this.getClass().getSimpleName() + " " + version + " called: " + restUrl + " user=" + user);
 		APIUtils.setupOnce(restUrl, user, pwd);
+		// store the id/pwd/url - for v1 calls (using search)
+		this.userId = user;
+		this.userPwd = pwd;
+		this.restUrl = restUrl;
 	}	
 
 	
-
 	/**
 	 * query EIC to get the resource structure for db objects
 	 * @param resourceName
@@ -75,12 +102,17 @@ public class DBStructureExport {
 		long start = System.currentTimeMillis();
 //		String[]
 		
+		// execute the search to find all instances of external databases from the resource
+		this.getExternalDbIdsForResource(resourceName);
+		
 		List<String> dbStructLines = new ArrayList<String>();
 		
 		System.out.println("\textracting structure for resource=" + resourceName + " type=" + type);
 				
 		int total=1000;
 		int offset=0;
+		int skipped = 0;
+				
 		//Standard Lucene style object query to get assets of a given type from a given resource.
 		String query=APIUtils.CORE_RESOURCE_NAME+":\""+resourceName+"\" AND (" +
 				"core.allclassTypes:\""+type+"\"" +
@@ -98,6 +130,12 @@ public class DBStructureExport {
 					
 			//Iterate over returned objects and add them to the return hashmap
 			for(ObjectResponse or: response.getItems()) {
+				
+				// check - if external objects are to be excluded and the id
+				if (excludeExtDbItems && this.isIdFromExternalDB(or.getId())) {
+					skipped++;
+					continue;
+				}
 				String colName=APIUtils.getValue(or,APIUtils.CORE_NAME);
 				String array[]= or.getId().split("/");
 				dbName = array[2];
@@ -134,7 +172,7 @@ public class DBStructureExport {
 					for(LinkedObjectResponse lr : or.getSrcLinks()) {
 						if(lr.getAssociation().equals("com.infa.ldm.axon.associatedGlossaries")) {
 							axonLinks++;
-//							System.out.println(or.getId()+": acon object :"+lr.getId());
+//							System.out.println(or.getId()+": axon object :"+lr.getId());
 							axonId = lr.getId();
 							axonName = lr.getName();							
 						}
@@ -150,10 +188,6 @@ public class DBStructureExport {
 				
 				// write the column structure info to the array (for sorting and finally writing to file)
 				dbStructLines.add(dbStructureLine.toString());
-//				if (! dbStructLines.contains(dbTableLine.toString()) ) {
-//					dbStructLines.add(dbTableLine.toString());
-//					System.out.println("adding table line... " + dbTableLine);
-//				}
 
 			}  // iterator - items in the returned 'page'
 		} // end of all objects queried
@@ -162,7 +196,7 @@ public class DBStructureExport {
 		long sortStart = System.currentTimeMillis();
 		Collections.sort(dbStructLines);
 		long sortEnd = System.currentTimeMillis();
-		System.out.println("\tcolumns processed " + dbStructLines.size() + " sort time:" + (sortEnd-sortStart) + "milliseconds");
+		System.out.println("\tcolumns processed " + dbStructLines.size() + " skipped:" + skipped + " sort time:" + (sortEnd-sortStart) + "milliseconds");
 		if (includeAxonTermLink) {
 			System.out.println("\tAxon terms linked: " + axonLinks);
 		}
@@ -180,6 +214,7 @@ public class DBStructureExport {
 		return dbStructLines;
 	}  // end getResourceStructure
 	
+	
 	/**
 	 * alternate method for extracting db resource structure contents
 	 * instead of using GET for all objects (columns, view columns)
@@ -190,9 +225,12 @@ public class DBStructureExport {
 	 * because only specific relationships/attributes are returned instead of 
 	 * all facts/relationships using the get method
 	 * 
+	 * update:  now also looks for Synonym|PublicSynonym objects in a schema
+	 *          for parity with the search method (for all columns) 
+	 * 
 	 * @param resourceName
 	 * @param pageSize
-	 * @return
+	 * @return List<String> with the database structure (sorted) - the caller can then write to file as needed
 	 * @throws Exception
 	 */
 	public List<String> getResourceStructureUsingRel(String resourceName, int pageSize) throws Exception {
@@ -214,6 +252,9 @@ public class DBStructureExport {
 		int count=0;
 		String dbQuery="core.resourceName:" + resourceName + " and core.classType:com.infa.ldm.relational.Database";
 		
+		// Note:  there is a bug here.  the search adds a wildcard - so finding resource AdventureWorks will also return AdventureWorks2014
+		//        quick work-around is to compare the found object id - with the resource name
+		
 		int total=1000;
 		int offset=0;
 		count = 0;
@@ -232,7 +273,14 @@ public class DBStructureExport {
 			for(ObjectResponse or: response.getItems()) {
 				dbId = or.getId();
 				dbName = APIUtils.getValue(or,APIUtils.CORE_NAME);
+				// get the resource name for the database - compare it to resourceName filter condition
+				if (!dbId.startsWith(resourceName+"://")) {
+					System.out.println("\tskipping database: " + dbName + " id=" + dbId + " different resource");
+					// go the the next object - skipping all subsequent processing
+					continue;
+				} 
 				System.out.println("\tprocessing database: " + dbName + " id=" + dbId);
+				
 				
 				// look at each dstLink - specifically for core.DirectionalDataFlow
 				for(LinkedObjectResponse lr : or.getDstLinks()) {
@@ -256,6 +304,11 @@ public class DBStructureExport {
 						linksToFollow.add("com.infa.ldm.relational.SchemaView");
 						linksToFollow.add("com.infa.ldm.relational.TableColumn");
 						linksToFollow.add("com.infa.ldm.relational.ViewViewColumn");
+						// also follow SchemaSynonym and SchemaPublicSynonym
+						linksToFollow.add("com.infa.ldm.relational.SchemaPublicSynonym");
+						linksToFollow.add("com.infa.ldm.relational.PublicSynonymColumn");
+						linksToFollow.add("com.infa.ldm.relational.SchemaSynonym");
+						linksToFollow.add("com.infa.ldm.relational.SynonymColumn");
 
 						ArrayList<String> attrsToReturn = new ArrayList<String>();
 						attrsToReturn.add("core.name");
@@ -270,9 +323,13 @@ public class DBStructureExport {
 							
 						//APIUtils.READER.catalogDataRelationshipsGetWithHttpInfo(seed, association, depth, direction, removeDuplicateAggregateLinks, includeTerms, includeAttribute)					
 						Links relResp=APIUtils.READER.catalogDataRelationshipsGet(seedIds, linksToFollow,  BigDecimal.valueOf(2), "OUT", true, null, attrsToReturn);
+//						System.out.println("lineage returned..." + relResp);
 						for( Link l : relResp.getItems()) {
 							if (l.getAssociationId().equals("com.infa.ldm.relational.TableColumn") || 
-									l.getAssociationId().equals("com.infa.ldm.relational.ViewViewColumn") ) {
+									l.getAssociationId().equals("com.infa.ldm.relational.ViewViewColumn") ||
+									l.getAssociationId().equals("com.infa.ldm.relational.SynonymColumn") ||
+									l.getAssociationId().equals("com.infa.ldm.relational.PublicSynonymColumn") 
+									) {
 								// we have a column level object...
 								String array[]= l.getInId().split("/");
 								tableName = array[4];
@@ -308,8 +365,8 @@ public class DBStructureExport {
 							}
 						}
 
+						System.out.println("\t\t\tcolumns for schema=" + dbCols);
 					}
-					System.out.println("\t\t\tcolumns for schema=" + dbCols);
 				} // for each dstLink (database schema)
 			}
 
@@ -333,6 +390,8 @@ public class DBStructureExport {
 		System.out.println("\tdb structure extract (relationships) finished in " + timeTaken);
 		return dbStructLines;
 	}
+	
+
 	
 	public String getEmbeddedValue(EmbeddedObject obj, String name) {
 		for(EmbeddedFact fact:obj.getFacts()) {
@@ -368,6 +427,59 @@ public class DBStructureExport {
 		}
 	}
 	
+	/**
+	 * store a list of the id of every ExternalDatabase object for the resource
+	 * this is used to filter any columns beloning to the ExternalDatabase Object - since they are not relevant to the db structure
+	 * @param resourceName
+	 */
+	private void getExternalDbIdsForResource(String resourceName) {
+		String dbQuery="core.resourceName:" + resourceName + " and core.classType:com.infa.ldm.relational.ExternalDatabase";
+
+		// Note:  there is a bug here.  the search adds a wildcard - so finding resource AdventureWorks will also return AdventureWorks2014
+		//        quick work-around is to compare the found object id - with the resource name
+		
+		int total=1000;
+		int offset=0;
+		int pageSize = 100;
+		try {
+		// for each page 
+			while (offset<total) {
+				ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(dbQuery, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);				
+				total=response.getMetadata().getTotalCount().intValue();
+				offset+=pageSize;
+				
+				//Iterate over the database objects found & add to the collection for reference/lookup later
+				for(ObjectResponse or: response.getItems()) {
+					String dbId = or.getId();
+					this.externalDbIds.add(dbId);
+				}
+
+			}
+		
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			
+		}
+
+		System.out.println("\tfound extDbObjects: " + this.externalDbIds.size());
+		
+		return;
+	}
+	
+	/**
+	 * return true if the object belongs to an external database
+	 * @param anId the id to check
+	 * @return true/false
+	 */
+	private boolean isIdFromExternalDB(String anId) {
+		for (String extId: externalDbIds) {
+//			System.out.println("checking " + anId + " with " + extId);
+			if (anId.startsWith(extId)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * command-line calls start here (resource watcher will not use main()
@@ -386,9 +498,10 @@ public class DBStructureExport {
 		String outFolder;
 		String resourceName;
 		Boolean includeAxonTerms = false;
+		boolean filterOutExtDbItems = true;
 		
 		if (args.length == 0 && args.length < 5) {
-            System.out.println("DBStructureExtract: command-line arguments:-  [eic-url] [userid] [pwd] [resourcename] [outfolder] [versionlabel] [includeAxonTerms");
+            System.out.println("DBStructureExtract: command-line arguments:-  [eic-url] [userid] [pwd] [resourcename] [outfolder] [versionlabel] [includeAxonTerms] [filterOutExternalDBObjects]");
             System.exit(0);
         }
 		
@@ -400,6 +513,9 @@ public class DBStructureExport {
 		version = args[5];
 		if (args.length>=6) {
 			includeAxonTerms = Boolean.parseBoolean(args[6]);
+		}
+		if (args.length>7) {
+			filterOutExtDbItems = Boolean.parseBoolean(args[7]);
 		}
 		List<String> resources = new ArrayList<String>();
 		resources.add(resourceName);
@@ -414,12 +530,15 @@ public class DBStructureExport {
 		// initialize the db stucture report
 		DBStructureExport rep=new DBStructureExport(url, user, pwd );
 		rep.setIncludeAxonTermLinks(includeAxonTerms);
+		if (! filterOutExtDbItems) {
+			rep.setExcludeExtDbObjects(filterOutExtDbItems);
+		}
 		List<String> dbStructureLines;
 		try {
-			// old way
-//			dbStructureLines=rep.getResourceStructure(resourceName, 500);
-			// new way - faster by 20-50% (using relationship api vs object
-			dbStructureLines=rep.getResourceStructureUsingRel(resourceName, 500);
+			// old way (slow but has no problems with volume)
+			dbStructureLines=rep.getResourceStructure(resourceName, 500);
+			// new way - faster by 20-50% (using relationship api vs object - but has problems when 200k+ columns in a single schema
+			//dbStructureLines=rep.getResourceStructureUsingRel(resourceName, 500);
 			String fileName = outFolder + "/" + resourceName + "_" + version + ".txt";
 			System.out.println("writing file to: _" + fileName);
 			rep.writeStructureToFile(fileName, dbStructureLines);
@@ -439,6 +558,6 @@ public class DBStructureExport {
 		
 
 	}
-	
+		
 
 }

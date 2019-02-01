@@ -499,9 +499,10 @@ public class DBStructureExport {
 		String resourceName;
 		Boolean includeAxonTerms = false;
 		boolean filterOutExtDbItems = true;
+		String dbExtractApiType = "objects";  // default to export using objects query vs relationships
 		
 		if (args.length == 0 && args.length < 5) {
-            System.out.println("DBStructureExtract: command-line arguments:-  [eic-url] [userid] [pwd] [resourcename] [outfolder] [versionlabel] [includeAxonTerms] [filterOutExternalDBObjects]");
+            System.out.println("DBStructureExtract: command-line arguments:-  [eic-url] [userid] [pwd] [resourcename] [outfolder] [versionlabel] [includeAxonTerms] [filterOutExternalDBObjects] [exportTechnique (objects|rels]");
             System.exit(0);
         }
 		
@@ -517,6 +518,18 @@ public class DBStructureExport {
 		if (args.length>7) {
 			filterOutExtDbItems = Boolean.parseBoolean(args[7]);
 		}
+		
+		if (args.length>8) {
+			if (args[8].equals("objects") || args[8].equals("rels")) {
+				// valid
+				dbExtractApiType = args[8];
+			} else {
+				System.out.println("extract type not equal to objects or rels - assuming objects");
+				// no - need to set anything - since the default is already set
+			}
+			dbExtractApiType = args[8];
+		}
+		
 		List<String> resources = new ArrayList<String>();
 		resources.add(resourceName);
 		
@@ -536,9 +549,14 @@ public class DBStructureExport {
 		List<String> dbStructureLines;
 		try {
 			// old way (slow but has no problems with volume)
-			dbStructureLines=rep.getResourceStructure(resourceName, 500);
-			// new way - faster by 20-50% (using relationship api vs object - but has problems when 200k+ columns in a single schema
-			//dbStructureLines=rep.getResourceStructureUsingRel(resourceName, 500);
+			if (dbExtractApiType.equalsIgnoreCase("objects")) {
+				System.out.println("\tcalling  getResourceStructure");
+				dbStructureLines=rep.getResourceStructure(resourceName, 500);
+			} else {
+				System.out.println("\tcalling  getResourceStructureUsingRel");
+				dbStructureLines=rep.getResourceStructureUsingRel(resourceName, 500);
+			}
+
 			String fileName = outFolder + "/" + resourceName + "_" + version + ".txt";
 			System.out.println("writing file to: _" + fileName);
 			rep.writeStructureToFile(fileName, dbStructureLines);

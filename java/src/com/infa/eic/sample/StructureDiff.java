@@ -308,7 +308,8 @@ public class StructureDiff {
 				  Transport.send(mimeMessage);    
 				  System.out.println("message sent successfully");    
 			  } catch (MessagingException e) {
-				  throw new RuntimeException(e);
+				  System.out.println("error sending email " + e.getMessage());
+//				  throw new RuntimeException(e);
 			  }  
 		  
 		} else {

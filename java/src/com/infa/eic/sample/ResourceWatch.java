@@ -31,7 +31,7 @@ import com.google.gson.GsonBuilder;
 
 
 public class ResourceWatch {
-    public static final String version="1.3";
+    public static final String version="1.31";
 
 	Integer waitTime = 0;
 //	Integer initialTime = 300;
@@ -127,6 +127,8 @@ public class ResourceWatch {
 		// store the property file - for passing to the diff process (email properties)
 		propertyFileName = propertyFile;
 		
+        System.out.println(this.getClass().getSimpleName() + " settings used");
+		
 		try {
 			
 			
@@ -154,16 +156,26 @@ public class ResourceWatch {
 				resourcesToWatch = new ArrayList<String>(Arrays.asList(resourceFilter.split(",")));
 			}
 			
-			dbExtractApiType = prop.getProperty("dbstruct.processtype");
+			dbExtractApiType = prop.getProperty("dbstruct.processtype", "objects");
+			if (dbExtractApiType == null || dbExtractApiType.length()==0) {
+				System.out.println("no value set for dbstruct.processtype, using 'objects'");
+				dbExtractApiType = "objects";
+			}
+
+			
 			excludeExternalDBObjects = Boolean.parseBoolean(prop.getProperty("dbstruct.excludeExternalDBObjects"));
 			if (! excludeExternalDBObjects) {
 				System.out.println("Warning: external database columns will be exported");
 			}
 			
 			pageSize=Integer.parseInt(prop.getProperty("pagesize", "300"));
-			System.out.println("Resource types filter: "  + resourcesTypesToMonitor);
-			System.out.println("Resource names filter: "  + resourcesToWatch);
 			
+			System.out.println("\tResource types filter: "  + resourcesTypesToMonitor);
+			System.out.println("\tResource names filter: "  + resourcesToWatch);
+			System.out.println("\t          catalog URL: "  + restURL);
+			System.out.println("\t                user : "  + userName);
+			System.out.println("\t     processing type : "  + dbExtractApiType);
+
 			includeAxonTermLink=Boolean.parseBoolean(prop.getProperty("includeAxonTermLink"));				
 
 			dbsOutFolder=prop.getProperty("dbstruct.outfolder");
@@ -175,6 +187,9 @@ public class ResourceWatch {
 	
 				// call initializeWatchProcess-  gets a list of resources/jobs...
 				this.initializeWatchProcess();
+				
+				System.out.println("");  // empty line
+				System.out.println("initialize completed: jobs currently monitored" + resourceJobMap);
 				
 				System.out.println("eicResourceWatch=" + " wait_time=" + waitTime + " seconds" + " rest.service=" + restURL + " includeAxonTermLink=" + includeAxonTermLink);
 //				logger.info("eicResourceWatch=" + "wait_time=" + waitTime + " seconds" + " rest.service=" + restURL);
@@ -190,14 +205,33 @@ public class ResourceWatch {
 	
 	/**
 	 * get a list of resources & jobs
+	 * 
+	 * gets a list of resources that should be monitored (ones in the resourceTypesToMonitor list)
+	 * gets a list of the current job for each resource 
+	 * 
+	 * the boolean passed to getJobList identifies the processing mode
+	 *      - false = startup mode
+	 *                means we not only get the current list of jobs for each monitored resource
+	 *                it will check to see if the structure has already been written to file for that resource
+	 *                and if not, will generate it
+	 *                if generating - it will also look for the most recent previous structure (based on file - that has a datestamp)
+	 *                                and use that to pass to the diff process
+	 *                it will store a Map of key=resourceName val=jobid for the monitor mode to use 
+	 *      - true  = monitor mode
+	 *                the difference here is that we already know the previous jobs, so only look for new jobs (a new scan)
+	 *                to use
 	 */
 	private void initializeWatchProcess() {
 		System.out.println("init watch service:-");
-		resourcesToMonitor = getResourceList(resourcesTypesToMonitor);
+		boolean printToConsole=true;
+		resourcesToMonitor = getResourceList(resourcesTypesToMonitor, printToConsole);
 		
 		System.out.println("\tget list of jobs (store with resources, as baseline or when new jobs are submitted");
-		boolean beQuiet = false;
-		resourceJobMap = getJobList(beQuiet);
+		boolean monitorMode = false;
+		
+		// the rc here is the map that is the critical piece for on-going monitoring
+		resourceJobMap = getJobList(monitorMode);
+		
 		
 		return;
 	}
@@ -240,16 +274,54 @@ public class ResourceWatch {
 	 */
 	private void processWatchInterval () {
 		// get the current list of job ids for completed (or running???)
+		
+		// Note:  this process does not detect new resources - so we also need to call get		
+		// allResourcesToMonitor = getResourceList(resourcesTypesToMonitor);
+		// then iterate through all results to see if there are any new - for each new, need to call db structure extract
+		// then continue to look for any changes for existing resources
+//		System.out.println("checking to see if any new resources were created..." );
+		List<String> allResourcesToMonitor = getResourceList(resourcesTypesToMonitor, false);
+		for (String possibleNewResource: allResourcesToMonitor) {
+//			System.out.println("testing: " + possibleNewResource + " in allresources: ");
+//			System.out.println(allResourcesToMonitor.contains(possibleNewResource));
+			
+			if (! resourcesToMonitor.contains(possibleNewResource)) {
+				// new resource...
+//				System.out.println("need to add resource: " + possibleNewResource);
+				resourcesToMonitor.add(possibleNewResource);
+
+			}
+			
+		}
+		
+
 		// compare to the inital list - if different - then kick off the diff process
+		// note the parameter passed to getJobList is a setting for beQuiet (true = don't display connection messages)
 		Map<String,String> currentJobMap = this.getJobList(true);
+		// if a new resource and a job - then export
+		// testing - add the resources from 
+		Set<String> allRes = new HashSet<String>();
+		allRes.addAll(currentJobMap.keySet());
+		allRes.addAll(resourceJobMap.keySet());
+		// allRes - is a unique combination of both currently monitoryed resources + any new resources with jobs
+//		System.out.println("Allrez size=" + allRes.size() + " current:" + resourceJobMap.keySet().size() +  " new: " + currentJobMap.keySet().size());
+		
 		// any differences????
 //		System.out.println("checking... " + currentJobMap.size());
 		for(String resName: resourceJobMap.keySet()) {
 			// check if the jobname is different....
-			if (!resourceJobMap.get(resName).equals(currentJobMap.get(resName))) {
+			String prevJobId=resourceJobMap.get(resName);
+			String currJobId=currentJobMap.get(resName);
+//			System.out.println("previous job=" + prevJobId);
+//			System.out.println("current  job=" + currJobId);
+//			System.out.println("interval check for " + resName + " old=" + prevJobId + " new=" + currJobId + " matching???:" + resourceJobMap.get(resName).equals(currentJobMap.get(resName)) );
+			if (prevJobId != null && currJobId !=null && ! prevJobId.equals(currJobId)) {
+//				!resourceJobMap.get(resName).equals(currentJobMap.get(resName))) {
+			
 				// if the current job is null - then the scan is still running...
 				// could switch and only monitory for complete (iterate over current job map vs resourceJobMap)
-				if (currentJobMap.get(resName)!=null) {
+//				if (currentJobMap.get(resName)!=null) {
+				if (allRes.contains(resName)) {
 //					System.out.println("different jobs...  time to kick off a new process..." + resName + " currentJob=" + currentJobMap.get(resName));
 					if (dbStructureExtract(resName, currentJobMap.get(resName)) ) {
 						// update the jobid in the existing resource colleciton - so we don't call this process again
@@ -283,6 +355,13 @@ public class ResourceWatch {
 					}
 					
 				
+				}
+			} else {
+				// old and new job names don't match
+				if (prevJobId==null) {
+					// no comp - but add the new job to the monitor list
+					System.out.println("*********************************");
+					resourceJobMap.put(resName, currJobId);
 				}
 			}
 			
@@ -319,6 +398,7 @@ public class ResourceWatch {
 	 * @return true if the file was created
 	 */
 	private boolean dbStructureExtract(String resourceName, String jobName) {
+		boolean fileCreated = false;
 		// get the job start time
 		String jobStart = this.jobStartTimes.get(jobName);
 		if (jobStart==null) {
@@ -327,7 +407,7 @@ public class ResourceWatch {
 		try {
 			// format the path/name of the file that contains the db structure
 			String fileName = this.formatStructFileName(resourceName, jobName);
-			System.out.println("\n\t" + this.getClass().getSimpleName() + " calling db structure extract for: " + resourceName + " job=" + jobName);
+			System.out.println("\n\t" + this.getClass().getSimpleName() + " calling db structure extract for: " + resourceName + " job=" + jobName + " processingType=" + dbExtractApiType);
 			// we need to add the /2 here - since this watcher uses v1 for resource stuff
 			DBStructureExport dbs = new DBStructureExport(restURL + "/2", userName, pwd);
 			dbs.setIncludeAxonTermLinks(includeAxonTermLink);
@@ -337,22 +417,31 @@ public class ResourceWatch {
 			}
 
 			// call the structure export - depending on the technique that is configured
-			if (dbExtractApiType.equalsIgnoreCase("objects")) {
+			List<String> dbStruct;
+			if (dbExtractApiType == null ||  dbExtractApiType.equalsIgnoreCase("objects")) {
 				System.out.println("\tcalling  getResourceStructure");
-				List<String> dbStruct = dbs.getResourceStructure(resourceName, this.pageSize);
-				dbs.writeStructureToFile(fileName, dbStruct);
+				dbStruct = dbs.getResourceStructure(resourceName, this.pageSize);
+//				dbs.writeStructureToFile(fileName, dbStruct);
 			} else {
 				System.out.println("\tcalling  getResourceStructureUsingRel");
-				List<String> dbStruct = dbs.getResourceStructureUsingRel(resourceName, this.pageSize);
-				dbs.writeStructureToFile(fileName, dbStruct);
+				dbStruct = dbs.getResourceStructureUsingRel(resourceName, this.pageSize);
+//				dbs.writeStructureToFile(fileName, dbStruct);
 			}
-			return true;
+			// new case - if there are 0 records returned, don't write the results to file (so no 0 byte files)
+			if (dbStruct.size() > 0) {
+				dbs.writeStructureToFile(fileName, dbStruct);
+				fileCreated=true;
+			} else {
+				System.out.println("Error:  resource " + resourceName + " has no datastructures extracted, no file will be created");
+			}
+
+//			return true;
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
 		}
 		
-		
+		return fileCreated;
 	}
 
 	/**
@@ -360,7 +449,8 @@ public class ResourceWatch {
 	 * @param resourceTypes (list of resource types)
 	 * @return List of resources that match the filter condition
 	 */
-	protected ArrayList<String> getResourceList(List<String> resourceTypes) {
+	protected ArrayList<String> getResourceList(List<String> resourceTypes, boolean printToConsole) {
+		
 		ArrayList<String> filteredResourceList = new ArrayList<String>();
 		
 		CredentialsProvider provider = new BasicCredentialsProvider();
@@ -373,7 +463,9 @@ public class ResourceWatch {
 		  .build();
 		
 		String eicUrlV1CatalogResources = restURL + "/1/catalog/resources";
-		System.out.println("\tconnecting to... " + eicUrlV1CatalogResources + " user=" + this.userName);
+		if (printToConsole) {
+			System.out.println("\tconnecting to... " + eicUrlV1CatalogResources + " user=" + this.userName);
+		}
 		 
 		HttpResponse response;
 		try {
@@ -381,7 +473,9 @@ public class ResourceWatch {
 			  new HttpGet(eicUrlV1CatalogResources ));
 			int statusCode = response.getStatusLine()
 					  .getStatusCode();
-			System.out.println("\tstatusCode=" + statusCode);
+			if (printToConsole) {
+				System.out.println("\tstatusCode=" + statusCode);
+			}
 //			System.out.println("\tresponse:" + response.toString());
             BufferedReader br = new BufferedReader(new InputStreamReader(
                     (response.getEntity().getContent())));
@@ -403,7 +497,9 @@ public class ResourceWatch {
         	resourceList = Arrays.asList(arr);
 
         	if (resourceList != null) {
-        		System.out.println("\tresources found__: " + resourceList.size() + " " + resourceList.toString());
+        		if (printToConsole) {
+        			System.out.println("\tresources found__: " + resourceList.size() + " " + resourceList.toString());
+        		}
 				for(ResourceSimpleProps res: resourceList) {
 //					System.out.println("\t\tresourceName=" + res.resourceName + " resourceTypeName=" + 
 //									res.resourceTypeName + " include=" + 
@@ -430,7 +526,9 @@ public class ResourceWatch {
 			e.printStackTrace();
 		}
 		
-        System.out.println("\tresources to monitor: " + filteredResourceList.size() + " " + filteredResourceList);
+		if (printToConsole) {
+			System.out.println("\tresources to monitor: " + filteredResourceList.size() + " " + filteredResourceList);
+		}
 		return filteredResourceList;
 		
 	}
@@ -439,16 +537,29 @@ public class ResourceWatch {
 	/**
 	 * get a list of resources by filtering the resource type
 	 * 
-	 * @param initialCall - if it is the first time (print information to log/console) otherwise do not print
+	 * @param isMonitorMode - if it is the first time (print information to log/console) otherwise do not print
 	 * @return List of jobs in a Map formatted as <resourceName>,<jobId>
 	 * Note:  also creates a collection of <jobid>:<jobstartdatemillis>
+	 * 
+	 * 	 * the boolean passed to getJobList identifies the processing mode
+	 *      - false = startup mode
+	 *                means we not only get the current list of jobs for each monitored resource
+	 *                it will check to see if the structure has already been written to file for that resource
+	 *                and if not, will generate it
+	 *                if generating - it will also look for the most recent previous structure (based on file - that has a datestamp)
+	 *                                and use that to pass to the diff process
+	 *                it will store a Map of key=resourceName val=jobid for the monitor mode to use 
+	 *      - true  = monitor mode
+	 *                the difference here is that we already know the previous jobs, so only look for new jobs (a new scan)
+	 *                to use
+
 	 */
-	protected Map<String,String> getJobList(boolean initialCall) {
+	protected Map<String,String> getJobList(boolean isMonitorMode) {
+//		System.out.println("### dw debug: + getJobList called parm:isQuietMode=" + isMonitorMode);
 		Map<String,String> resourceJobs = new HashMap<String,String>();
 		
 		CredentialsProvider provider = new BasicCredentialsProvider();
-		UsernamePasswordCredentials credentials
-		 = new UsernamePasswordCredentials(userName, pwd);
+		UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(userName, pwd);
 		provider.setCredentials(AuthScope.ANY, credentials);
 		  
 		HttpClient client = HttpClientBuilder.create()
@@ -456,54 +567,59 @@ public class ResourceWatch {
 		  .build();
 		
 		String eicUrlV1CatalogResources = restURL + "/1/catalog/resources/jobs";
-		if (!initialCall) {
+		if (!isMonitorMode) {
+			// init/startup mode - be more verbose in printing to the console
 			System.out.println("\tconnecting to... " + eicUrlV1CatalogResources);
 		}
 		 
 		HttpResponse response;
 		try {
-			response = client.execute(
-			  new HttpGet(eicUrlV1CatalogResources ));
-			int statusCode = response.getStatusLine()
-					  .getStatusCode();
-			if (!initialCall) {
+			response = client.execute(new HttpGet(eicUrlV1CatalogResources ));
+			int statusCode = response.getStatusLine().getStatusCode();
+			if (!isMonitorMode) {
 				System.out.println("\tstatusCode=" + statusCode);
 //				System.out.println("\tresponse:" + response.toString());
 			}
 			BufferedReader br = new BufferedReader(new InputStreamReader(
                     (response.getEntity().getContent())));
 
-            String output;
+			// get the json resultset from the api call
+			String output;
             StringBuffer json = new StringBuffer();
-//            System.out.println("\tOutput from Server .... \n");
             while ((output = br.readLine()) != null) {
-//                System.out.println("\tline: " + output);
                 json.append(output);
             }
             
+            // note:  java sucks at reading json natively, so we use gson (google json libs) & the JobSimpleProps class
+            // store the results into an array of JobSimpleProps, then convert to a List for easier iterating
             Gson gson = new GsonBuilder().create();
         	List<JobSimpleProps> jobList;
-    		if (!initialCall) {
-//    			System.out.println("\tjson response body=" + json);
-    		}
         	JobSimpleProps[] arr = gson.fromJson(json.toString(), JobSimpleProps[].class);
         	jobList = Arrays.asList(arr);
 
         	if (jobList != null) {
-        		if (!initialCall) {
+        		if (!isMonitorMode) {
         			System.out.println("\ttotal jobs found__: " + jobList.size());
         		}
+        		
+        		// do somwthing for each job in the jobList
 				for(JobSimpleProps res: jobList) {
 					
 					// if the jobtype = "SCAN_JOB" and status="completed" and the resource is one we want to monitor, then add it to the hashmap
+					// debug printing
+					/**
+					if (resourcesToMonitor.contains(res.resourceName)) {
+						System.out.println("\tchecking " + res.resourceName + " job=" + res.jobId + " jobType=" + res.jobType + " status=" + res.status + 
+										   " resource Monitored?=" + resourcesToMonitor.contains(res.resourceName));
+						System.out.println("monitorMode=" + isMonitorMode + " currentResourceJob=" + resourceJobMap.get(res.resourceName));
+					}
+					*/
 					
-//					System.out.println("\tchecking " + res.resourceName + " job=" + res.jobId + " jobType=" + res.jobType + " status=" + res.status);
-//					System.out.println("\t\t" + "SCAN_JOB".equals(res.jobType));
-//					System.out.println("\t\t" + "Completed".equals(res.status));
-//					System.out.println("\t\t" + resourcesToMonitor.contains(res.resourceName) + " " + resourcesToMonitor);
-					if ("SCAN_JOB".equals(res.jobType) && "Completed".equals(res.status) && resourcesToMonitor.contains(res.resourceName)) {
-//						System.out.println("\t\t!!!! winner here...");
-						resourceJobs.put(res.resourceName, res.jobId);
+					if ("SCAN_JOB".equals(res.jobType) && "Completed".equals(res.status) 
+							                           && resourcesToMonitor.contains(res.resourceName)) {
+						// bug here - commenting this line + moving to after structure extracted
+//						resourceJobs.put(res.resourceName, res.jobId);
+
 						// test - store the start time of the job (used for the name of the dbstructure
 //						System.out.println("job start=" + res.startTime);
 						Date startDate = new Date(res.startTime);
@@ -513,13 +629,15 @@ public class ResourceWatch {
 						// 
 						resourcesInProgress.remove(res.resourceName);
 
-//						if (this.resourcesToMonitor.contains(res.resourceName)) {
-	//						filteredJobList.add(res.resourceName);
 						// check to see if there is a db structure extract job already existing for this resource
 						//TODO - fix this - if a re-scan happens - we don't call the dbStructureExtract (let the watcher process do it)
-						if (!initialCall) {
+						// but - if a new resource is added, we probably want to treat it like initmode...
+
+						String fileName = formatStructFileName(res.resourceName, res.jobId);
+
+						if (!isMonitorMode) {
 //							String fileName = dbsOutFolder + "/" + res.resourceName + ":" + res.jobId + ".txt";
-							String fileName = formatStructFileName(res.resourceName, res.jobId);
+//							String fileName = formatStructFileName(res.resourceName, res.jobId);
 							
 //							System.out.println("checking if file exists:" + fileName + " " + new File(fileName).exists());
 							
@@ -529,37 +647,59 @@ public class ResourceWatch {
 								String prevDBStrucFile = this.getLastDbStructureFile(res.resourceName);
 
 	//							System.out.println(this.getClass().getName() + " calling dbExtract for newly completed scan: " + res.resourceName + " job=" + res.jobId);
-								this.dbStructureExtract(res.resourceName, res.jobId);
-								
-//								String prevDBStrucFile = this.getLastDbStructureFile(res.resourceName);
-								if (!prevDBStrucFile.equals("")) {
-//									System.out.println("ready to call structure diff..." + prevDBStrucFile + " <> " + fileName);
-									// todo ---  
-									/**
-									 * we do not know the name of the previous load for this resource, so we need to find the list of files 
-									 * for this resource, ordered by name and get the most recent file as the compare from...
-									 */
-									File fromFile=new File(prevDBStrucFile);
-									File toFile  =new File(fileName);
-									System.out.println("ready to call structure diff..." + fromFile + " <> " + toFile);
-							    	try {
-							        	StructureDiff sd = new StructureDiff(fromFile, toFile, propertyFileName);
-							        	sd.processDiffs();
-										
-									} catch (IOException e) {
-										e.printStackTrace();
-									}
+//								this.dbStructureExtract(res.resourceName, res.jobId);
+								// check for true result - (if file is actually written)
+								if (dbStructureExtract(res.resourceName, res.jobId)) {
+									// add the job as one to monitor  (only if a file was created)  
+									resourceJobs.put(res.resourceName, res.jobId);
 
-								}
-								
-
+									if (!prevDBStrucFile.equals("")) {
+										/**
+										 * we do not know the name of the previous load for this resource, so we need to find the list of files 
+										 * for this resource, ordered by name and get the most recent file as the compare from...
+										 */
+										File fromFile=new File(prevDBStrucFile);
+										File toFile  =new File(fileName);
+										System.out.println("ready to call structure diff..." + fromFile + " <> " + toFile);
+								    	try {
+								        	StructureDiff sd = new StructureDiff(fromFile, toFile, propertyFileName);
+								        	sd.processDiffs();
+											
+										} catch (IOException e) {
+											e.printStackTrace();
+										}
+									}   // end if prev structure != ""
+								}  // if structure was extracted
+							}  else {
+								// end if filename
+//								System.out.println("file does exist: " + fileName + " it should be monitored...");
+								resourceJobs.put(res.resourceName, res.jobId);
 							}
+						} else {
+							// in monitor mode (vs in startup mode)
+							// if the job that is completed - is not in the resourceJobMap
+							// then we have a case for a newly created resource (after the watch started)
+							// that we need to write the structure to file & when another run happens - use that for comparing
+							if (resourceJobMap.get(res.resourceName) == null ) {
+								System.out.println("\nnew resource/first scan detected: " + res.resourceName + " job=" + res.jobId);
+								if (dbStructureExtract(res.resourceName, res.jobId)) {
+									// add the job as one to monitor  (only if a file was created)  
+									resourceJobs.put(res.resourceName, res.jobId);
+									// also add to the map of current jobs - so it will monitor from here on out
+									resourceJobMap.put(res.resourceName, res.jobId);
+								}
+							}
+							// we need to add the job here
+							// if first time running this (setup mode, vs monitor mode)
+//							if (new File(fileName).exists() ) {
+								// add to the resourceJobs collection
+								resourceJobs.put(res.resourceName, res.jobId);
+//							}
 						}
-							
-//						}
-					}
-				}
-        	}
+					}  // end - if it is a job we want to watch (a scan_job & completed & a resource we are monitoring)
+				}  // for each job found
+        	
+        	}  // if there are jobs to process
             
 
 		} catch (ClientProtocolException e) {
@@ -567,9 +707,11 @@ public class ResourceWatch {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		if (!initialCall) {
+		if (!isMonitorMode) {
 			System.out.println("\tjobs to monitor: " + resourceJobs.size() + " " + resourceJobs);
 		}
+		
+//		System.out.println("returning from getJobList " + resourceJobs.size() + " " + resourceJobs);
 		return resourceJobs;
 		
 	}	

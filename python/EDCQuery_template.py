@@ -39,14 +39,14 @@ query = " core.allclassTypes:( \
         ) \
         and core.resourceName:acme_crm \
         "
-        
+
 pageSize = 10    # e.g. 10 objects for each page/chunk - change as needed
 # ******************************************************
 # end of parameters that should be changed
 # ******************************************************
 
 objectsurl = catalogServer + '/access/2/catalog/data/objects'
-header = {"Accept": "application/json"} 
+header = {"Accept": "application/json"}
 itemCount = 0
 
 
@@ -67,7 +67,7 @@ def main():
     note:  this version supports the paging model, to process the results
            in chunks of pageSize
     """
-    total = 1000  # initial value - set to > 0 - will be over-written by the count of objects returned
+    total = 1000  # initial value - set to > 0 - will replaced on first call
     offset = 0
     page = 0
 
@@ -111,4 +111,3 @@ def main():
 # call main - if not already called or used by another script
 if __name__ == "__main__":
     main()
-

@@ -39,6 +39,7 @@ query = " core.allclassTypes:( \
         ) \
         and core.resourceName:acme_crm \
         "
+        
 pageSize = 10    # e.g. 10 objects for each page/chunk - change as needed
 # ******************************************************
 # end of parameters that should be changed

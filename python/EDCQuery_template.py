@@ -40,7 +40,7 @@ query = " core.allclassTypes:( \
         and core.resourceName:acme_crm \
         "
 
-pageSize = 10    # e.g. 10 objects for each page/chunk - change as needed
+pageSize = 10   # e.g. 10 objects for each page/chunk - change as needed
 # ******************************************************
 # end of parameters that should be changed
 # ******************************************************
@@ -91,7 +91,8 @@ def main():
         resultJson = resp.json()
         total = resultJson['metadata']['totalCount']
         print("objects found: " + str(total) + " offset: " + str(offset) +
-              " pagesize="+str(pageSize) + " currentPage=" + str(page))
+              " pagesize="+str(pageSize) + " currentPage=" + str(page) + 
+              " objects " + str(offset+1) + "-" + str(offset+pageSize) )
 
         # for next iteration
         offset += pageSize

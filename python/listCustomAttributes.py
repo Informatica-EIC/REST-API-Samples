@@ -23,6 +23,11 @@ start_time = time.time()
 # initialize http header - as a dict
 header = {}
 auth = None
+# create a re-useable session
+sess = requests.Session()
+sess.headers.update({"Accept": "application/json"})
+# s.auth = ('user', 'pass')
+
 """
 # ******************************************************
 # change these settings for your catalog service
@@ -50,17 +55,19 @@ if "INFA_EDC_URL" in os.environ:
 if "INFA_EDC_AUTH" in os.environ:
     print("using INFA_EDC_AUTH from environment")
     header["Authorization"] = os.environ["INFA_EDC_AUTH"]
+    sess.headers.update({"Authorization": os.environ["INFA_EDC_AUTH"]})
     # print(os.environ['INFA_EDC_AUTH'])
     auth = None
 else:
     # hard-code (or prompt the user for id/pwd here)
-    uid = ""
+    uid = "edcuser"
     pwd = ""
     print("no setting found for INFA_EDC_AUTH - using user=" + uid + " from script")
     auth = HTTPBasicAuth(uid, pwd)
 
 if "INFA_EDC_SSL_PEM" in os.environ:
     verify = os.environ["INFA_EDC_SSL_PEM"]
+    sess.verify = os.environ["INFA_EDC_SSL_PEM"]
     print("using ssl certificate from env var INFA_EDC_SSL_PEM=" + verify)
 
 
@@ -92,15 +99,44 @@ def main():
     """
     global resturl
     global verify
-    resturl = catalogUrl + "/access/2/catalog/models/attributes"
-    # headerheader = {"Accept": "application/json"}
-    header["Accept"] = "application/json"
+    global sess
 
+    # create and initialize the header for the output csv file
     fCSVFile = open(outputFile, "w", newline="", encoding="utf-8")
     print("custom attributes csv file initialized: " + outputFile)
     colWriter = csv.writer(fCSVFile)
     colWriter.writerow(["Name", "Id", "Type", "Facetable", "Sortable", "AttributeType"])
 
+    # extract for all "attributes"
+    baseurl = catalogUrl + "/access/2/catalog/models/"
+    attrCount, custAttrCount = getCustomAttribute(
+        sess, baseurl + "attributes", colWriter
+    )
+
+    # extract  all "referenceAttributes"
+    allClassifications, classificationCount = getCustomAttribute(
+        sess, baseurl + "referenceAttributes", colWriter
+    )
+
+    print("")
+    print("Finished - run time = %s seconds ---" % (time.time() - start_time))
+    print("total attributes=" + str(attrCount))
+    print("custom attributes=" + str(custAttrCount))
+    print("total classification attributes=" + str(allClassifications))
+    print("custom classification attributes=" + str(classificationCount))
+
+    fCSVFile.close()
+    return
+
+
+def getCustomAttribute(session, resturl, colWriter):
+    """
+    get a list of custom attributes or reference attributes
+    write the result to the csv file colWriter
+
+    both api calls will return standard and custom attributes
+    so we filter for anything starting with com.infa.appmodels.ldm.
+    """
     total = 1000  # initial value - set to > 0 - replaced after first call
     offset = 0
     page = 0
@@ -108,25 +144,18 @@ def main():
     print("url=" + resturl)
     # print("user=" + uid)
     print("")
-    # print(header)
+    print("executing get: " + resturl.rsplit("/access/2", 1)[-1])
 
     attrCount = 0
     custAttrCount = 0
 
     while offset < total:
         page += 1
-        parameters = {"offset": offset, "pageSize": pageSize}
+        parms = {"offset": offset, "pageSize": pageSize}
 
         # execute catalog rest call, for a page of results
         try:
-            resp = requests.get(
-                resturl,
-                params=parameters,
-                headers=header,
-                auth=auth,
-                timeout=3,
-                verify=verify,
-            )
+            resp = session.get(resturl, params=parms, timeout=3)
         except requests.exceptions.RequestException as e:
             print("Error connecting to : " + resturl)
             print(e)
@@ -154,7 +183,11 @@ def main():
             attrCount += 1
             attrId = attrDef["id"]
             attrName = attrDef["name"]
-            dataType = attrDef["dataTypeId"]
+            if "dataTypeId" in attrDef:
+                dataType = attrDef["dataTypeId"]
+            if "refDataTypeId" in attrDef:
+                # if (resturl.endswith("referenceAttributes")):
+                dataType = attrDef["refDataTypeId"]
             sortable = attrDef["sortable"]
             facetable = attrDef["facetable"]
             if attrId.startswith("com.infa.appmodels.ldm."):
@@ -180,93 +213,12 @@ def main():
                         dataType,
                         str(facetable),
                         str(sortable),
-                        "custom attribute",
+                        resturl.rsplit("/", 1)[-1],
                     ]
                 )
 
     # end of while loop
-
-    # note /access/2/catalog/models/attributes does not return classifications
-    # set the total to a number > 0, for the first call
-    total = 1000
-    offset = 0
-    page = 0
-    classificationCount = 0
-    allClassifications = 0
-
-    print("")
-    print("reference attributes:")
-
-    resturl = catalogUrl + "/access/2/catalog/models/referenceAttributes"
-    while offset < total:
-        page += 1
-        parameters = {"offset": offset, "pageSize": pageSize}
-
-        # execute catalog rest call, for a page of results
-        resp = requests.get(
-            resturl,
-            params=parameters,
-            headers=header,
-            auth=auth,
-            verify=verify,
-            timeout=3,
-        )
-        status = resp.status_code
-        if status != 200:
-            # some error - e.g. catalog not running, or bad credentials
-            print("error! " + str(status) + str(resp.json()))
-            break
-
-        resultJson = resp.json()
-        total = resultJson["metadata"]["totalCount"]
-
-        # for next iteration
-        offset += pageSize
-
-        # for each attribute found...
-        for attrDef in resultJson["items"]:
-            allClassifications += 1
-            attrId = attrDef["id"]
-            attrName = attrDef["name"]
-            dataType = attrDef["refDataTypeId"]
-            sortable = attrDef["sortable"]
-            facetable = attrDef["facetable"]
-            if attrId.startswith("com.infa.appmodels.ldm."):
-                # custAttrCount += 1
-                classificationCount += 1
-                # print to console
-                print(
-                    "Name: "
-                    + attrName
-                    + " id="
-                    + attrId
-                    + " type="
-                    + dataType
-                    + " sortable="
-                    + str(sortable)
-                    + " facetable="
-                    + str(facetable)
-                )
-                # write to csv
-                colWriter.writerow(
-                    [
-                        attrName,
-                        attrId,
-                        dataType,
-                        str(facetable),
-                        str(sortable),
-                        "reference attribute",
-                    ]
-                )
-
-    print("")
-    print("Finished - run time = %s seconds ---" % (time.time() - start_time))
-    print("total attributes=" + str(attrCount))
-    print("custom attributes=" + str(custAttrCount))
-    print("total classification attributes=" + str(allClassifications))
-    print("custom classification attributes=" + str(classificationCount))
-
-    fCSVFile.close()
+    return attrCount, custAttrCount
 
 
 # call main - if not already called or used by another script

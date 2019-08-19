@@ -3,3 +3,5 @@ externalDBLinks.csv
 *.pyc
 out/*.csv
 .vscode/
+*.cer
+*.pem

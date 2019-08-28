@@ -88,7 +88,11 @@ public class BulkClassifier {
 		final int pageSize=20;
 		
 		while (offset<total) {
-			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			// ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
+
 			
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;
@@ -125,7 +129,11 @@ public class BulkClassifier {
 			ArrayList<String> refAttributeID=new ArrayList<String>();
 			refAttributeID.add("com.infa.appmodels.ldm.LDM_6de56c74_4560_40c7_9efe_bbdb3eba9b51");
 			while(offset<total) {
-				AttributesResponse responses=APIUtils.MODEL_READER.catalogModelsAttributesGet(refAttributeID, referenceClassType, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize));
+				// EDC (client.jar) <=10.2.1
+//				AttributesResponse responses=APIUtils.MODEL_READER.catalogModelsAttributesGet(refAttributeID, referenceClassType, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize));
+				// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+				AttributesResponse responses=APIUtils.MODEL_READER.catalogModelsAttributesGet(refAttributeID, referenceClassType, offset, pageSize);
+
 				total=responses.getMetadata().getTotalCount().intValue();
 				offset+=pageSize;
 				

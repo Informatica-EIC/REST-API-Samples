@@ -85,7 +85,7 @@ public class ModelLinker {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		ModelLinker fbg=new ModelLinker();
+//		ModelLinker fbg=new ModelLinker();
 		
 		System.out.println("main here...");
 		
@@ -240,7 +240,13 @@ public class ModelLinker {
 			String physicalName="";
 			
 			while (offset<total) {
-				ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(entityQuery, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+				// EDC (client.jar) <=10.2.1
+				//ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(entityQuery, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+				// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+				ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(entityQuery, null, offset, pageSize, null, null);
+				// EDC (client.jar) 10.2.2hf1+
+//				ObjectsResponse response=APIUtils..catalogDataObjectsGet(entityQuery, null, offset, pageSize, null, null);
+				
 				total=response.getMetadata().getTotalCount().intValue();
 				offset+=pageSize;
 				System.out.println("Entities found: " + total);
@@ -270,7 +276,10 @@ public class ModelLinker {
 					String findTables = tableQuery + " AND core.name_lc_exact:\"" + physicalName + "\"";
 					System.out.println("\tfinding table (exact name match): " + findTables);
 					logWriter.println("\tfinding table (exact name match): " + findTables);
-					ObjectsResponse tabsResp=APIUtils.READER.catalogDataObjectsGet(findTables, null, BigDecimal.valueOf(0), BigDecimal.valueOf(10), false);
+					// EDC (client.jar) <=10.2.1
+					// ObjectsResponse tabsResp=APIUtils.READER.catalogDataObjectsGet(findTables, null, BigDecimal.valueOf(0), BigDecimal.valueOf(10), false);
+					// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+					ObjectsResponse tabsResp=APIUtils.READER.catalogDataObjectsGet(findTables, null, 0, 10, null, null);
 					int tabTotal=tabsResp.getMetadata().getTotalCount().intValue();
 					System.out.println("\tTables found=" + tabTotal);
 					logWriter.println("\tTables found=" + tabTotal);
@@ -305,6 +314,7 @@ public class ModelLinker {
 //						System.out.println("attrs to read=" + attrs);
 						
 						
+						// TODO:  this fails with 10.2.2hf1 (need to test sp1) and hf1 client.jar
 						Links entLinks = APIUtils.READER.catalogDataRelationshipsGet(
 								new ArrayList<>(Arrays.asList(entityId)), 
 								new ArrayList<>(Arrays.asList(entityAttrLink)), 

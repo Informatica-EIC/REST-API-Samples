@@ -47,7 +47,10 @@ private static String DIVISION="com.infa.appmodels.ldm.LDM_a5922c30_42eb_40ac_bb
 		HashMap<String, HashSet<String>> retMap=new HashMap<String,HashSet<String>>();
 		
 		while (offset<total) {
-			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			//ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;
 			

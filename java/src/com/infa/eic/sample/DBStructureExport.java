@@ -122,7 +122,10 @@ public class DBStructureExport {
 				
 		// for each page 
 		while (offset<total) {
-			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			// ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
 					
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;
@@ -262,7 +265,11 @@ public class DBStructureExport {
 
 		// for each page 
 		while (offset<total) {
-			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(dbQuery, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);				
+			// EDC (client.jar) <=10.2.1
+			// ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(dbQuery, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);				
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(dbQuery, null, offset, pageSize, null, null);
+
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;
 
@@ -444,7 +451,11 @@ public class DBStructureExport {
 		try {
 		// for each page 
 			while (offset<total) {
-				ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(dbQuery, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);				
+				// EDC (client.jar) <=10.2.1
+				// ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(dbQuery, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);				
+				// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+				ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(dbQuery, null, offset, pageSize, null, null);
+
 				total=response.getMetadata().getTotalCount().intValue();
 				offset+=pageSize;
 				

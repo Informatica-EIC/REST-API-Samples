@@ -83,7 +83,10 @@ public class CustomAttributeValuesCopier {
 		final int pageSize=300;
 		
 		while (offset<total) {
-			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			// ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
 			
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;
@@ -126,7 +129,11 @@ public class CustomAttributeValuesCopier {
 		
 		while (offset<total) {
 			try {			
-				AttributesResponse response=APIUtils.MODEL_READER.catalogModelsAttributesGet(null, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize));
+				// EDC (client.jar) <=10.2.1
+				// AttributesResponse response=APIUtils.MODEL_READER.catalogModelsAttributesGet(null, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize));
+				// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+				AttributesResponse response=APIUtils.MODEL_READER.catalogModelsAttributesGet(null, null, offset, pageSize);
+				
 				total=response.getMetadata().getTotalCount().intValue();
 				offset+=pageSize;
 				

@@ -84,8 +84,10 @@ private static String DIVISION="com.infa.appmodels.ldm.LDM_a5922c30_42eb_40ac_bb
 		String query2="* AND core.allclassTypes:\""+APIUtils.TABLE_CLASSTYPE+"\"";
 		HashMap<String,String> tMap = new HashMap<String,String>();
 		while (offset<total) {						
-			
-			ObjectsResponse tableResponse=APIUtils.READER.catalogDataObjectsGet(query2, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			//ObjectsResponse tableResponse=APIUtils.READER.catalogDataObjectsGet(query2, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse tableResponse=APIUtils.READER.catalogDataObjectsGet(query2, null, offset, pageSize, null, null);
 			offset+=pageSize;			
 			
 			for(ObjectResponse tor: tableResponse.getItems()) {
@@ -103,7 +105,10 @@ private static String DIVISION="com.infa.appmodels.ldm.LDM_a5922c30_42eb_40ac_bb
 		total=3000;
 		offset=0;
 		while (offset<total) {			
-			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			//ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
 			total=response.getMetadata().getTotalCount().intValue();
 			
 			if (offset==0) System.out.println("Total object # :" + total);

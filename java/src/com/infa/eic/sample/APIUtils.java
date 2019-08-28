@@ -12,6 +12,7 @@ import java.util.HashSet;
 import javax.swing.JOptionPane;
 import javax.swing.JPasswordField;
 
+import com.infa.products.ldm.core.rest.v2.client.api.CatalogApi;
 import com.infa.products.ldm.core.rest.v2.client.api.ModelInfoApi;
 import com.infa.products.ldm.core.rest.v2.client.api.ObjectInfoApi;
 import com.infa.products.ldm.core.rest.v2.client.api.ObjectModificationApi;
@@ -51,6 +52,10 @@ public final class APIUtils {
 	public final static ObjectInfoApi READER = new ObjectInfoApi(); 
 	public final static ObjectModificationApi WRITER = new ObjectModificationApi();
 
+	public final static CatalogApi CATALOG_API = new CatalogApi();
+	
+	
+
 	public final static ModelInfoApi MODEL_READER = new ModelInfoApi(); 
 
 		
@@ -65,6 +70,10 @@ public final class APIUtils {
 		MODEL_READER.getApiClient().setUsername(USER);
 		MODEL_READER.getApiClient().setPassword(PASS);
 		MODEL_READER.getApiClient().setBasePath(URL);		
+		CATALOG_API.getApiClient().setUsername(USER);
+		CATALOG_API.getApiClient().setPassword(PASS);
+		CATALOG_API.getApiClient().setBasePath(URL);		
+
 	}
 
 	/**
@@ -122,7 +131,13 @@ public final class APIUtils {
 		
 		while (offset<total) {
 			//Query the Object READER
-			ObjectsResponse response=READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			// ObjectsResponse response=READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			 ObjectsResponse response=READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
+			// EDC (client.jar) 10.2.2hf1+ 
+//			ObjectsResponse response=CATALOG_API.catalogDataObjectsGet(query, null, offset, pageSize, null, null, null, null, null, null, null);
+			 
 			
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;
@@ -148,7 +163,10 @@ public final class APIUtils {
 		HashMap<String, HashSet<String>> retMap=new HashMap<String,HashSet<String>>();
 		
 		while (offset<total) {
-			ObjectsResponse response=READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			// ObjectsResponse response=READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
 			
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;

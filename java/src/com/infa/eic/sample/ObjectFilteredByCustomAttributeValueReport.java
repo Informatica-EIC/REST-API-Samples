@@ -99,9 +99,13 @@ public class ObjectFilteredByCustomAttributeValueReport {
 		HashMap<String,HashMap<String,String>> retMap=new HashMap<String,HashMap<String,String>>();
 		
 		String query = srcCustomAttributeID+":\""+srcCustomAttributeValue+"\"";
+		System.out.println("query syntax=" + query);
 		
 		while (offset<total) {
-			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) <=10.2.1
+			// ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize), false);
+			// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+			ObjectsResponse response=APIUtils.READER.catalogDataObjectsGet(query, null, offset, pageSize, null, null);
 			
 			total=response.getMetadata().getTotalCount().intValue();
 			offset+=pageSize;
@@ -129,11 +133,14 @@ public class ObjectFilteredByCustomAttributeValueReport {
 		
 		while (offset<total) {
 			try {			
-				AttributesResponse response=APIUtils.MODEL_READER.catalogModelsAttributesGet(null, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize));
+				// EDC (client.jar) <=10.2.1
+				//AttributesResponse response=APIUtils.MODEL_READER.catalogModelsAttributesGet(null, null, BigDecimal.valueOf(offset), BigDecimal.valueOf(pageSize));
+				// EDC (client.jar) 10.2.2 (+ 10.2.2 sp1)
+				AttributesResponse response=APIUtils.MODEL_READER.catalogModelsAttributesGet(null, null, offset, pageSize);
 				total=response.getMetadata().getTotalCount().intValue();
 				offset+=pageSize;
 				
-				for(AttributeResponse ar: response.getItems()) {					
+				for(AttributeResponse ar: response.getItems()) {
 					if(ar.getName().equals(customAttributeName)) {
 						if (customAttributeId != null && ! customAttributeId.equals("")) dup = true;
 						customAttributeId=ar.getId();					

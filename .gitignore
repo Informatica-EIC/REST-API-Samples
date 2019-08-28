@@ -5,3 +5,4 @@ output1.csv
 .pydevproject
 python/.env
 python/.env*
+java/lib/client.jar

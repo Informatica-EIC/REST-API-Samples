@@ -31,7 +31,7 @@ import com.google.gson.GsonBuilder;
 
 
 public class ResourceWatch {
-    public static final String version="1.31";
+    public static final String version="1.32";
 
 	Integer waitTime = 0;
 //	Integer initialTime = 300;
@@ -571,6 +571,8 @@ public class ResourceWatch {
 			// init/startup mode - be more verbose in printing to the console
 			System.out.println("\tconnecting to... " + eicUrlV1CatalogResources);
 		}
+		
+		Map<String, Long> purgedMap = new HashMap<String, Long>();
 		 
 		HttpResponse response;
 		try {
@@ -601,6 +603,16 @@ public class ResourceWatch {
         		if (!isMonitorMode) {
         			System.out.println("\ttotal jobs found__: " + jobList.size());
         		}
+
+				for(JobSimpleProps res: jobList) {
+					// store any deleted job's
+					if ("PURGE_DELETE_JOB".equals(res.jobType)) {
+						purgedMap.put(res.resourceName, res.endTime);
+					}
+				}
+//				if (purgedMap.size()>0) {
+//					System.out.println("\tpurged jobs=" + purgedMap);
+//				}
         		
         		// do somwthing for each job in the jobList
 				for(JobSimpleProps res: jobList) {
@@ -615,10 +627,28 @@ public class ResourceWatch {
 					}
 					*/
 					
+					
+//					// store any deleted job's
+//					if ("PURGE_DELETE_JOB".equals(res.jobType)) {
+//						System.out.println("possible purge in the way..." + res.resourceName);
+//						purgedMap.put(res.resourceName, res.endTime);
+//					}
+					
+					
 					if ("SCAN_JOB".equals(res.jobType) && "Completed".equals(res.status) 
 							                           && resourcesToMonitor.contains(res.resourceName)) {
 						// bug here - commenting this line + moving to after structure extracted
 //						resourceJobs.put(res.resourceName, res.jobId);
+						boolean isPurgedLast = false;
+						if (purgedMap.containsKey(res.resourceName)) {
+							Long lastPurged = purgedMap.get(res.resourceName);
+							if (lastPurged > res.endTime) {
+//								System.out.println("\tresource was purged after last load, skipping.. " + lastPurged + " " + res.endTime +  " res=" + res.resourceName);
+								isPurgedLast = true;
+								continue;
+							}
+						}
+
 
 						// test - store the start time of the job (used for the name of the dbstructure
 //						System.out.println("job start=" + res.startTime);

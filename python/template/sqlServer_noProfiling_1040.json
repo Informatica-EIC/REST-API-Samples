@@ -1,0 +1,235 @@
+{
+    "resourceIdentifier": {
+      "resourceName": "",
+      "description": " ",
+      "resourceTypeId": "MSSqlServer",
+      "resourceTypeName": "Microsoft SQL Server",
+      "resourceTypeVersion": ""
+    },
+    "scannerConfigurations": [
+      {
+        "scanner": {
+          "scannerId": "MSSQLServerScanner",
+          "providerTypeId": "CORE",
+          "providerTypeName": "Source Metadata"
+        },
+        "enabled": true,
+        "configOptions": [
+          {
+            "optionId": "ScannerExecutionMode",
+            "optionValues": [
+              "normal"
+            ]
+          },
+          {
+            "optionId": "AuthenticationMode",
+            "optionValues": [
+              "SQLServer"
+            ]
+          },
+          {
+            "optionId": "Host",
+            "optionValues": [
+              "10.132.2.181"
+            ]
+          },
+          {
+            "optionId": "Port",
+            "optionValues": [
+              1433
+            ]
+          },
+          {
+            "optionId": "Instance",
+            "optionValues": []
+          },
+          {
+            "optionId": "Database",
+            "optionValues": [
+              ""
+            ]
+          },
+          {
+            "optionId": "User",
+            "optionValues": [
+              "SA"
+            ]
+          },
+          {
+            "optionId": "Import system objects",
+            "optionValues": [
+              false
+            ]
+          },
+          {
+            "optionId": "Tables, Views",
+            "optionValues": [
+              "All"
+            ]
+          },
+          {
+            "optionId": "Import stored procedures",
+            "optionValues": [
+              false
+            ]
+          },
+          {
+            "optionId": "Import Private and Public Synonyms",
+            "optionValues": [
+              true
+            ]
+          },
+          {
+            "optionId": "Case Sensitive",
+            "optionValues": [
+              false
+            ]
+          },
+          {
+            "optionId": "Memory",
+            "optionValues": [
+              "Low"
+            ]
+          },
+          {
+            "optionId": "TrackSourceChanges",
+            "optionValues": [
+              false
+            ]
+          },
+          {
+            "optionId": "Password",
+            "optionValues": [
+              "*************"
+            ]
+          }
+        ]
+      },
+      {
+        "scanner": {
+          "scannerId": "CompositeDomainScanner",
+          "providerTypeId": "CompositeDomainDiscovery",
+          "providerTypeName": "Composite Domain Discovery"
+        },
+        "enabled": false,
+        "configOptions": [
+          {
+            "optionId": "SelectCompositeDataDomains",
+            "optionValues": [
+              "AllCompositeDataDomains"
+            ]
+          }
+        ]
+      },
+      {
+        "scanner": {
+          "scannerId": "ProfileScanner",
+          "providerTypeId": "Profiling",
+          "providerTypeName": "Data Discovery"
+        },
+        "enabled": false,
+        "configOptions": [
+          {
+            "optionId": "DiscoveryOption",
+            "optionValues": [
+              "Profiling"
+            ]
+          },
+          {
+            "optionId": "runOnHadoop",
+            "optionValues": [
+              "Native"
+            ]
+          },
+          {
+            "optionId": "ProfilingRunOptions",
+            "optionValues": [
+              "ColumnProfiling"
+            ]
+          },
+          {
+            "optionId": "SamplingOptions",
+            "optionValues": [
+              "FirstNRowsSampling"
+            ]
+          },
+          {
+            "optionId": "RunSimilarityProfile",
+            "optionValues": [
+              "false"
+            ]
+          },
+          {
+            "optionId": "FirstNNumberOfSampleRows",
+            "optionValues": [
+              10000
+            ]
+          },
+          {
+            "optionId": "Priority",
+            "optionValues": [
+              "low"
+            ]
+          },
+          {
+            "optionId": "ExcludeViews",
+            "optionValues": [
+              false
+            ]
+          },
+          {
+            "optionId": "Incremental",
+            "optionValues": [
+              false
+            ]
+          },
+          {
+            "optionId": "isCumulative",
+            "optionValues": [
+              true
+            ]
+          },
+          {
+            "optionId": "enableProfileValidation",
+            "optionValues": [
+              false
+            ]
+          },
+          {
+            "optionId": "ProfileableObjectsFilterRegex",
+            "optionValues": [
+              "All"
+            ]
+          },
+          {
+            "optionId": "securityDomain",
+            "optionValues": [
+              "Native"
+            ]
+          }
+        ]
+      },
+      {
+        "scanner": {
+          "scannerId": "TermAssociationScanner",
+          "providerTypeId": "BusinessTermAssociation",
+          "providerTypeName": "Business Term Association"
+        },
+        "enabled": true,
+        "configOptions": [
+          {
+            "optionId": "isUseSynonymsAndStopWords",
+            "optionValues": [
+              true
+            ]
+          },
+          {
+            "optionId": "glossaries",
+            "optionValues": [
+              "Axon_Demo"
+            ]
+          }
+        ]
+      }
+    ]
+  }

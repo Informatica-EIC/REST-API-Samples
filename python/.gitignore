@@ -2,6 +2,14 @@ externalDBLinks.csv
 .pydevproject
 *.pyc
 out/*.csv
+out/*.json
+out/*.xlxs
+out/*.xml
 .vscode/
 *.cer
 *.pem
+edcpy/*
+*.code-workspace
+build/
+dist/
+.edcvenv/

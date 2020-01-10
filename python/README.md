@@ -26,6 +26,14 @@ Getting Started
 * verify that python is installed - v3.6+
 * Create a new VSCode/pycharm/Eclipse Project and import/use the files in the python folder (not the java folder)
 * Ensure EDC is running while executing the samples - try/except code will catch & immediately exit
+* best practice is to use a virtual environment with python
+  * e.g. python -m venv .edcvenv  
+  * and then 
+    * source .edcvenv/bin/activate (for linux/macox)
+    * .edcvenv/Scripts/activate.ps1 (for windows powershell)
+      Note:  you may need to execute `Set-ExecutionPolicy unrestricted` for powershell (run powershell as administrator to do this)
+    * .edcvenv/Scripts/activate.bat (windows cmd)
+  * after activating - pip install -r requirements.txt (will install any packages referecned in requierments .txt file - including requests)
 * you may need to install python pakages like requests if you get a message like `ImportError: No module named requests`
   * ```
     sudo pip install requests
@@ -68,14 +76,35 @@ Sample Programs in the Project
     * an alternate is to prompt for a password within your script & encode the id:password
   * use `encodeUser27.py` for legacy python
 * `EDCQuery_template.py`:  a template/skeleton that shows how to connect to the catalog and execute a search using python.  the result-set processing includes handling the paging model.  It also uses the `getFactValue` method in `edcutils.py` to extract the item name from the facts array
-* `edcutils.py`:  utility/helper methods for common tasks - like get an attribute value `getFactValue(item, attrName)`
+* Utility/Heloer Scripts
+  * `edcutils.py`:  utility/helper methods for common tasks - like get an attribute value `getFactValue(item, attrName)`
+  * `edcSessionHelper.py`: EDCSession class helps you configure a requests.session object and also provides command-line args for connecting to the catalog (-c/-edcurl EDC URL, -a/--auth auth credentials (see encodeUser.py), -u username (will prompt for pwd - recommend using -a, -s/--sslcert SSLCERT).  
+    * this class also supports using the following environment vars:
+      * INFA_EDC_URL - e.g. http://yourcatalogserver:9085 or https://yourcatalogserver:9085
+      * INFA_EDC_AUTH - e.g. "Basic dXNlcl9hOnJlYWxseXNlY3VyZXBhc3N3b3Jk" - see `encodeUser.py`
+      * INFA_EDC_SSL_PEM - certificate to use to connect (or set to None - to disable ssl verfication)
+    * for an example of usage - see `listAndCountCustomAttributes.py`
+* `listAndCountCustomAttributes.py`: find all custom attributes (normal and classification) and count the # of times the attribute is used.  writes results to csv file (output folder can be configured)
+  * supports command-line parameters and environment vars for accessing the catalog.
+  * uses edcSessionHelper.py to get a session reference to any rest queries
 * `listCustomAttributes.py`: simple script to print all custom attributes (name, id, type, sortable, facetable)
   * this script will list both regular custom attributes `/2/catalog/models/attributes` and reference 'classification' attributes `/2/catalog/models/referenceAttributes`
 * `similarityReport.py`: v10.2.1+ utility to find & export all columns/fields with similar links
+  * note:  this script will attempt to query all dataelements, even if similarity profiling was not run.  for a better implementation, use `similarityByResource.py`
+* `similarityByResource.py`: utility to find and export column similarity for all resources that similarity profiling was configured.
+  * supports command-line parameters and environment vars for accessing the catalog.
+  * uses edcSessionHelper.py to get a session reference to any rest queries
 * `dbSchemaReplicationLineage.py`: provides the ability to link tables/columns in a database schema that are replicated to other schemas/databases & no scanner exists to automatcially document these relationships.  (e.g. sqoop, scripts/code, goldengate ...)
   * see [dbSchemaReplicationLineage.md](dbSchemaReplicationLineage.md) for more
 * `externalDBLinker.py`: script to generate custom lineage for any tables/columns created within an ExternalDatabase/ExternalSchema (often happens with Oracle (dblink) and SQLServer databases (references to databases in views)
   * see [externalDBLinker.md](externalDBLinker.md) for more
+* `domainSummary.py` - queries the catalog to find all instances where data domains are used & counts the # of All, Accepted, Inferred, Rejected for all resources and per resource
+  * output is an excel workbook (domain_summary.xlxs) with a worksheet for counts across all resources, and a worksheet per resource with individual counts per resource.  optional output to .csv files (per resource) is also possible
+  * supports command-line parameters and environment vars for accessing the catalog.
+  * uses edcSessionHelper.py to get a session reference to any rest queries
+* `xdocAnalyzer.py` - use this script to download xdocs for a resource and analyze the contents (counts # of objects by type, # of attributes) and will analyze all links + connection assignments.  can be useful for troubleshooting (especially for resources that do not yet support reference objects)
+  * supports command-line parameters and environment vars for accessing the catalog.
+  * uses edcSessionHelper.py to get a session reference to any rest queries
 
 
 

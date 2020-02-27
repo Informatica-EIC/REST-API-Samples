@@ -1,6 +1,7 @@
 package com.infa.eic.sample;
 
 import java.io.BufferedReader;
+import java.io.Console;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,6 +16,9 @@ import java.util.*;
 import java.util.Date;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
+
+import javax.swing.JOptionPane;
+import javax.swing.JPasswordField;
 
 import org.apache.commons.io.comparator.NameFileComparator;
 import org.apache.http.HttpResponse;
@@ -31,7 +35,18 @@ import com.google.gson.GsonBuilder;
 
 
 public class ResourceWatch {
-    public static final String version="1.32";
+    public static final String version="1.33";
+    
+	protected static String DISCLAIMER="\n************************************ Disclaimer *************************************\n" +
+			 "By using this utility, you are agreeing to the following:-\n"
+			 + "- this utility is not officially supported by Informatica\n"
+			 + "  it was has been tested on many different dbms types and catalog versions (e.g. 10.2.1, 10.2.2)\n"
+			 + "  but it may not work for all situations\n"
+			 + "- Issues can be created on githib:- \n"
+			 + "  https://github.com/Informatica-EIC/REST-API-Samples  (java folder)\n"
+			 + "*************************************************************************************\n"
+			 + "\n";
+
 
 	Integer waitTime = 0;
 //	Integer initialTime = 300;
@@ -93,21 +108,38 @@ public class ResourceWatch {
 		} else {
 			System.out.println("EIC Resource watcher: " + args[0] + " currentTimeMillis=" +System.currentTimeMillis());
 			
-		
-			// pass the property file - the constructor will read all input properties
-			ResourceWatch watcher = new ResourceWatch(args[0]);
-			if (watcher.resourcesTypesToMonitor.isEmpty()) {
-				System.out.println("no resources found to watch, exiting");
-				System.exit(0);
+			String disclaimerParm="";
+			if (args.length>=2) {
+				// 2nd argument is an "agreeToDisclaimer" string
+				disclaimerParm=args[1];
+//				System.out.println("disclaimer parameter passed: " + disclaimerParm);
+				if ("agreeToDisclaimer".equalsIgnoreCase(disclaimerParm)) {
+					System.out.println("the following disclaimer was agreed to by passing 'agreeToDisclaimer' as 2nd parameter");
+					System.out.println(DISCLAIMER);
+				}
 			}
-			// call the watch process
+
 			
-			if (watcher.getWaitTime()>0) {
-				System.out.println("starting watch process for " + watcher.resourceJobMap.size() + " resources");
-				watcher.watchForNewResourceJobsToComplete(); 
+			if ("agreeToDisclaimer".equalsIgnoreCase(disclaimerParm) || showDisclaimer()) {
+
+				// pass the property file - the constructor will read all input properties
+				ResourceWatch watcher = new ResourceWatch(args[0]);
+				if (watcher.resourcesTypesToMonitor.isEmpty()) {
+					System.out.println("no resources found to watch, exiting");
+					System.exit(0);
+				}
+				// call the watch process
+				
+				if (watcher.getWaitTime()>0) {
+					System.out.println("starting watch process for " + watcher.resourceJobMap.size() + " resources");
+					watcher.watchForNewResourceJobsToComplete(); 
+				} else {
+					System.out.println("wait_time set to 0, exiting (no continuous monitoring)");				
+				}
 			} else {
-				System.out.println("wait_time set to 0, exiting (no continuous monitoring)");				
+				System.out.println("Disclaimer was declined - exiting");
 			}
+
 		}	
 	}
 
@@ -142,7 +174,7 @@ public class ResourceWatch {
 			waitTime = Integer.parseInt(prop.getProperty("wait_time_seconds"));
 			restURL = prop.getProperty("rest_service");
 			resourceTypes =  prop.getProperty("resourceTypesToWatch");
-			resourceFilter =  prop.getProperty("resourcesToWatch");
+			resourceFilter =  prop.getProperty("resourcesToWatch", "");
 			userName = prop.getProperty("user");
 			pwd = prop.getProperty("password");
 			if (pwd.equals("<prompt>")) {
@@ -830,6 +862,27 @@ public class ResourceWatch {
 	}
 	
 	
+	public static boolean showDisclaimer() {
+		System.out.println(DISCLAIMER);
+		Console c=System.console();
+		String response;
+		boolean hasAgreed=false;
+		if (c==null) { //IN ECLIPSE IDE (prompt for password using swing ui 
+			System.out.println("no console found...");
+			final JPasswordField pf = new JPasswordField(); 
+			String message = "Do you agree to this disclaimer? Y or N ";
+			response = JOptionPane.showConfirmDialog( null, pf, message, JOptionPane.OK_CANCEL_OPTION, 
+						JOptionPane.QUESTION_MESSAGE ) == JOptionPane.OK_OPTION ? new String( pf.getPassword() ) : "response (Y|N)"; 
+		} else { //Outside Eclipse IDE  (e.g. windows/linux console)
+			response =  new String(c.readLine("agree (Y|N)? ") );
+		}		
+		System.out.println("user entered:" + response);
+		if (response!=null && response.equalsIgnoreCase("Y")) {
+			hasAgreed=true;
+		}
+
+		return hasAgreed;
+	}
 
 
 

@@ -8,7 +8,7 @@ Requirements
   * why? support for legacy python stops 1/1/2020, fstrings, unicode, async, many other 3rd party libraries like pandas, numpy, django are also not supporting legacy python 
 * Note:  some scipts will work with legacy python (v2.7) but these are not maintained or heavily tested
   * any script with a suffix of 27 should work on legacy python systems
-  * if you can't easily install python 3.x (e.g 3.7) - you could use docker to run the code in a python3 container
+  * if you can't easily install python 3.x (e.g 3.7) - you could use docker to run the code in a python3 container, or send a request for us to create a compiled binary executable (e.g. using pyinstaller)
 * Python editors (ide/environments)
   * VS Code - good support for python - free an runs on all platforms  https://code.visualstudio.com/
   * pycharm - https://www.jetbrains.com/pycharm/
@@ -33,12 +33,7 @@ Getting Started
     * .edcvenv/Scripts/activate.ps1 (for windows powershell)
       Note:  you may need to execute `Set-ExecutionPolicy unrestricted` for powershell (run powershell as administrator to do this)
     * .edcvenv/Scripts/activate.bat (windows cmd)
-  * after activating - pip install -r requirements.txt (will install any packages referecned in requierments .txt file - including requests)
-* you may need to install python pakages like requests if you get a message like `ImportError: No module named requests`
-  * ```
-    sudo pip install requests
-    ```
-* TODO: create a setup document for pyenv and venv
+  * after activating (or using your base python3.6+), execute `pip install -r requirements.txt` (will install any packages referecned in requirements .txt file - including requests, openpyxl and python-dotenv)
 
 
 REST API Authentication
@@ -56,6 +51,7 @@ REST API Authentication
     * e.g  "envFile": "${workspaceFolder}/.env",        // and add any settings to .env (preferred - also works with docker)
     * e.g. "env" : {"INFA_EDC_AUTH" : "Basic dXNlcjE6YUNvbXBsIWNAdGVkUGEkM3cwcmQ="}, (works but prefer .env file)
   * Note:  any files inside of .vscode (e.g. launch.json) will be excluded from the git repo (each user has their own local version)
+* you can also use setupConnection.py to create a .env file that stores the catalog url and the encoded user credentials
 * TODO:  create a seperate document & recording disucssing authorization techniques (http header, .netrc, auth=)
 
 

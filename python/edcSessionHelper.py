@@ -28,6 +28,8 @@ import os
 import base64
 import getpass
 import requests
+from urllib.parse import urljoin
+
 # from pathlib import Path
 import pathlib
 from dotenv import load_dotenv
@@ -40,7 +42,7 @@ class EDCSession:
     """
 
     def __init__(self):
-        self.baseUrl = ""
+        self.baseUrl = None
         self.session = None
         self.argparser = argparse.ArgumentParser(add_help=False)
         self.__setup_standard_cmdargs__()
@@ -62,7 +64,8 @@ class EDCSession:
             "--envfile",
             help=(
                 ".env file with config settings INFA_EDC_URL,INFA_EDC_AUTH etc  "
-                "will over-ride system environment variables.  if not specified - '.env' file in current folder will be used "
+                "will over-ride system environment variables.  "
+                "if not specified - '.env' file in current folder will be used "
             ),
             default=".env",
         )
@@ -124,12 +127,17 @@ class EDCSession:
         args, unknown = self.argparser.parse_known_args()
         if args.envfile is not None:
             # check if the file exists
-            envfullpath = (pathlib.Path(".").cwd() / args.envfile)
-            # print(f"ready to check .env file {args.envfile} {envfullpath}")
+            # envfullpath = (pathlib.Path(".").cwd() / args.envfile)
+            print(f"ready to check .env file {args.envfile}")
             if pathlib.Path(args.envfile).is_file():
                 print(f"\t\tloading from .env file {args.envfile}")
                 # envfullpath = f"{Path('.').cwd()}\\{args.envfile}"
-                load_dotenv(dotenv_path=(pathlib.Path(args.envfile)), verbose=True, override=True)
+                # override - ensure we read settings from <envfile> vs vars
+                load_dotenv(
+                    dotenv_path=(pathlib.Path(args.envfile)),
+                    verbose=True,
+                    override=True,
+                )
                 # check the settings from the .env file
                 # print(os.getenv("INFA_EDC_URL"))
                 edcurl = os.getenv("INFA_EDC_URL")
@@ -141,18 +149,65 @@ class EDCSession:
                 edcauth = os.environ["INFA_EDC_AUTH"]
                 # print(f"read edc auth from {args.envfile} value={edcauth}")
                 if edcauth is not None and edcauth != auth:
-                    print(f"\t\treplacing edc auth with INFA_EDC_AUTH value from {args.envfile}")
+                    print(
+                        f"\t\treplacing edc auth with INFA_EDC_AUTH value "
+                        "from {args.envfile}"
+                    )
                     auth = edcauth
             else:
                 print("isfile False")
         else:
             print("env file not found??")
 
+        # check the catalog url & user command-line
+        if args.edcurl is not None:
+            if self.baseUrl != args.edcurl:
+                print(f"\t\tusing edcurl from command-line parameter {args.edcurl}")
+                self.baseUrl = args.edcurl
+        # if there is still no edc url - then prompt for it
+        if self.baseUrl is None:
+            # nothing entered anywyere for the base url
+            print(f"edc url not specified in ENV var or command-line parameter")
+            self.baseUrl = input("Enter catalog URL: http(s)://server:port :")
+
+        # user credential stored in auth
+        if args.auth is not None:
+            print(f"\t\tover-riding auth setting from command-line..{args.auth}")
+            auth = args.auth
+
+        # if no auth passed at all env/.env/cmd-line - -u over-rides auth
+        if args.user is not None:
+            p = getpass.getpass(
+                prompt="\nenter the password for user=" + args.user + ":"
+            )
+            b64_auth_str = base64.b64encode(bytes(f"{args.user}:{p}", "utf-8"))
+            auth = f'Basic {b64_auth_str.decode("utf-8")}'
+
+        # if there is still no auth - then prompt for id and pwd
+        if auth is None:
+            print(
+                f"no credentials in ENV var/.env file/command-line - prompting for id/pwd"
+            )
+            args.user = input("\tuser id: ")
+            p = getpass.getpass(prompt="\tpassword for user=" + args.user + ": ")
+            b64_auth_str = base64.b64encode(bytes(f"{args.user}:{p}", "utf-8"))
+            auth = f'Basic {b64_auth_str.decode("utf-8")}'
+
+        """
+
+        print(f"checking command-line args {args}")
         if args.edcurl is None and args.user is None:
             print("\t\tno over-riding command-line arguments passed - skipping")
-            pass
+            # prompt user and password???
+            print("prompting for user-id and password - for future runs, best to add INFA_EDC_AUTH to a .env file")
+            args.user = input("user id: ")
+            p = getpass.getpass(
+                    prompt="\nenter the password for user=" + args.user + ":"
+                )
+            b64_auth_str = base64.b64encode(bytes(f"{args.user}:{p}", "utf-8"))
+            auth = f'Basic {b64_auth_str.decode("utf-8")}'
         else:
-            # print(f"args passed={args}")
+            print(f"checking cmd args args passed={args}")
             if args.edcurl is not None:
                 if self.baseUrl != args.edcurl:
                     print(f"\t\tusing edcurl from command-line parameter {args.edcurl}")
@@ -163,15 +218,17 @@ class EDCSession:
                 )
                 b64_auth_str = base64.b64encode(bytes(f"{args.user}:{p}", "utf-8"))
                 auth = f'Basic {b64_auth_str.decode("utf-8")}'
-
-        if args.auth is not None:
-            print(f"\t\tover-riding auth setting from command-line..{args.auth}")
-            auth = args.auth
+        """
 
         if args.sslcert is not None:
-            verify = args.sslcert
+            if args.sslcert == "False":
+                verify = False
+            else:
+                verify = args.sslcert
 
         if self.baseUrl is None:
+            # prompt the user for the catalog ui
+
             print(
                 "\t\tno catalog url passed, either as env varirable or with "
                 "-c/--edcurl parameter - exiting"
@@ -185,3 +242,49 @@ class EDCSession:
         self.session.baseUrl = self.baseUrl
 
         print("\tfinished reading common env/.env/cmd parameters")
+
+    def initSession(self, catalog_url, catalog_auth, verify):
+        """
+        given a valid URL and auth - setup a requests session to use for subsequent calls
+        verify can be False
+        """
+        self.session = requests.Session()
+        self.baseUrl = catalog_url
+        self.session.baseUrl = self.baseUrl
+        self.session.headers.update({"Authorization": catalog_auth})
+        if verify is None:
+            verify = False
+        self.session.verify = verify
+
+    def validateConnection(self):
+        """
+        validate that the connection informatioon (url + auth credentials)
+        are correct.
+        returns:
+            status code (e.g. 200 for ok)
+            json message ()
+        """
+        print(f"validating connection to {self.session.baseUrl}")
+        try:
+            url = urljoin(self.baseUrl, "access/2/catalog/data/productInformation")
+            # url = self.baseUrl + "access/2/catalog/data/productInformation"
+            resp = self.session.get(url, timeout=3)
+            print(f"api status code={resp.status_code}")
+            if resp.status_code == 200:
+                # valid and 10.4+
+                return resp.status_code, resp.json()
+            elif resp.status_code == 400:
+                print("catalog server is not v10.4 or later - trying another method...")
+                # invalid request - try another api call
+                url = urljoin(self.baseUrl, "access/1/catalog/data")
+                resp = self.session.get(url, timeout=3)
+                print(f"2nd try status code = {resp.status_code}")
+            else:
+                print(f"error connecting {resp.json()}")
+            return resp.status_code, resp.json()
+        except requests.exceptions.RequestException as e:
+            print("Error connecting to : " + url)
+            print(e)
+            # exit if we can't connect
+            return 0, None
+

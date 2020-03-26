@@ -199,10 +199,12 @@ def writeSimilarityResults(resourceName, theWriter, totalToExtract):
         for foundItem in resultJson["items"]:
             hasSimilarity, itemSimLinks = processFoundItem(foundItem)
             simLinks += itemSimLinks
+            if hasSimilarity:
+                itemsWithSim += 1
 
         # end of while loop
         print(
-            f" time={time.time() - page_time:.1f}s - {itemsWithSim}/{simLinks}"
+            f" time={time.time() - page_time:.1f}s - {itemsWithSim}/{simLinks}/{mem.maxSim}"
             f" items/simLinks"
         )
         mem.fCSVFile.flush()  # flush the csv file for each page/chunk
@@ -212,6 +214,11 @@ def processFoundItem(foundItem):
     itemId = foundItem["id"]
     simLinks = 0
     hasSim = False
+
+    nameCount = 0
+    pattCount = 0
+    valuCount = 0
+    freqCount = 0
 
     # check if any additional facts are present
     for addFacts in foundItem["additionalFacts"]:
@@ -232,7 +239,10 @@ def processFoundItem(foundItem):
                 print("\tno dstObjects in simResult for " + itemId)
                 # don't process - this can happen for synonym columns named *
                 continue
+
+            simCount = 0
             for dstObject in simResult["dstObjects"]:
+                simCount += 1
                 patternSim = ""
                 nameSim = ""
                 valSim = ""
@@ -249,33 +259,33 @@ def processFoundItem(foundItem):
                     val = linkProps.get("value")
                     if name == "com.infa.ldm.similarity.patternSimScore":
                         patternSim = val
+                        pattCount += 1
                     if name == "com.infa.ldm.similarity.nameSimScore":
                         nameSim = val
+                        nameCount += 1
                     if name == "com.infa.ldm.similarity.valuesSimScore":
                         valSim = val
+                        valuCount += 1
                     if name == "com.infa.ldm.similarity.vfSimScore":
                         frqSim = val
+                        freqCount += 1
                     if name == "com.infa.ldm.similarity.confidenceScore":
                         scoreSim = val
 
                 simLinks += 1
                 mem.simLinks += 1
                 mem.colWriter.writerow(
-                    [
-                        itemId,
-                        dstId,
-                        scoreSim,
-                        valSim,
-                        frqSim,
-                        patternSim,
-                        nameSim,
-                    ]
+                    [itemId, dstId, scoreSim, valSim, frqSim, patternSim, nameSim,]
                 )
 
             if hasSimLinks:
                 mem.simObjects += 1
                 # itemsWithSim += 1
-    
+    if simLinks > mem.maxSim:
+        mem.maxSim = simLinks
+        mem.maxSimId = itemId
+
+    mem.countWriter.writerow([itemId.split(":")[0], itemId, itemId.split("/")[-1], simLinks, nameCount, pattCount, valuCount, freqCount])
     return hasSim, simLinks
 
 
@@ -294,6 +304,10 @@ def initCsvOutFile():
     mem.colWriter = csv.writer(mem.fCSVFile)
     mem.colWriter.writerow(columnHeader)
 
+    mem.fSimCounts = open(mem.outFile.replace(".csv", "_counts.csv"), "w", newline="", encoding="utf-8")
+    mem.countWriter = csv.writer(mem.fSimCounts)
+    mem.countWriter.writerow(["resource", "id", "name", "sim count"])
+
 
 def main():
     # initialize the edc session and common connection parms
@@ -308,6 +322,8 @@ def main():
     start_time = time.time()
     mem.simObjects = 0
     mem.simLinks = 0
+    mem.maxSim = 0
+    mem.maxSimId = ""
 
     # create the csv file to store the results
     initCsvOutFile()
@@ -332,6 +348,12 @@ def main():
     print(f"\tsimObjects={mem.simObjects:,} simLinks={mem.simLinks:,}")
     print("*********\n")
 
+    print(f"max sim links: {mem.maxSim}")
+    print(f"max sim id   : {mem.maxSimId}")
+
+    # close files
+    mem.fCSVFile.close()
+    mem.fSimCounts.close()
 
 # call main - if not already called or used by another script
 if __name__ == "__main__":

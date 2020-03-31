@@ -212,16 +212,16 @@ def writeSimilarityResults(resourceName, theWriter, totalToExtract):
         mem.fCSVFile.flush()  # flush the csv file for each page/chunk
 
 
-def get_parent_id(an_id):
+def get_parent_id(an_id: str) -> str:
     """
     given an id - get the parent id.
     for most items - it will be the id before the last /
     for .json or .xml - it will be the id up to the .json/.xml
     """
     parent_id = an_id.rsplit("/", 1)[0]
-    if id.find(".xml"):
+    if an_id.find(".xml") > 0:
         parent_id = an_id[: an_id.find(".xml") + 4]
-    elif id.find(".json"):
+    elif an_id.find(".json") > 0:
         parent_id = an_id[: an_id.find(".json") + 5]
 
     return parent_id
@@ -399,11 +399,13 @@ def main():
     print(f"\nsimilar resources {len(simResources)}")
     print(simResources)
     elCount = 0
+    resource_count = 0
 
     for aResource in simResources:
+        resource_count += 1
         elems = getElementsForResource(aResource)
         elCount += elems
-        print(f"{aResource} elements={elems}")
+        print(f"{resource_count}/{len(simResources)} - {aResource} elements={elems}")
         writeSimilarityResults(aResource, mem.colWriter, elems)
 
     end_time = time.time()

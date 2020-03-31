@@ -44,7 +44,8 @@ argparser.add_argument(
     "-out",
     "--outFile",
     required=False,
-    help="output file (csv) to create, either relative to current folder or an absolute reference, default out/similarObjectsByResource.csv",
+    help=("output file (csv) to create, either relative to current folder or an "
+          " absolute reference, default out/similarObjectsByResource.csv"),
     default="out/similarObjectsByResource.csv",
     type=str,
 )
@@ -75,7 +76,7 @@ def listResources():
     return resourceDict
 
 
-def doesResourfeHaveSimilarity(resourceName) -> bool:
+def doesResourceHaveSimilarity(resourceName) -> bool:
     """
     see if there is any similarity discovery
     """
@@ -115,7 +116,7 @@ def getResourcesWithSimilarity() -> list:
     print(f"all resources count = {len(resourceTN)}")
 
     for aResource in resourceTN.keys():
-        if doesResourfeHaveSimilarity(aResource):
+        if doesResourceHaveSimilarity(aResource):
             simResources.append(aResource)
             print("+", end="", flush=True)
         else:
@@ -167,7 +168,7 @@ def writeSimilarityResults(resourceName, theWriter, totalToExtract):
     # pageSize = 250
 
     while offset < total:
-        itemCount = 0
+        # itemCount = 0
         itemsWithSim = 0
         simLinks = 0
         page += 1
@@ -204,16 +205,35 @@ def writeSimilarityResults(resourceName, theWriter, totalToExtract):
 
         # end of while loop
         print(
-            f" time={time.time() - page_time:.1f}s - {itemsWithSim}/{simLinks}/{mem.maxSim}"
+            f" time={time.time() - page_time:.1f}s - "
+            f"{itemsWithSim}/{simLinks}/{mem.maxSim}"
             f" items/simLinks"
         )
         mem.fCSVFile.flush()  # flush the csv file for each page/chunk
+
+
+def get_parent_id(an_id):
+    """
+    given an id - get the parent id.
+    for most items - it will be the id before the last /
+    for .json or .xml - it will be the id up to the .json/.xml
+    """
+    parent_id = an_id.rsplit("/", 1)[0]
+    if id.find(".xml"):
+        parent_id = an_id[: an_id.find(".xml") + 4]
+    elif id.find(".json"):
+        parent_id = an_id[: an_id.find(".json") + 5]
+
+    return parent_id
 
 
 def processFoundItem(foundItem):
     itemId = foundItem["id"]
     simLinks = 0
     hasSim = False
+
+    from_resource = itemId.split("://")[0]
+    to_resource = ""
 
     nameCount = 0
     pattCount = 0
@@ -230,6 +250,9 @@ def processFoundItem(foundItem):
             simParms = {"pageSize": 1000}
             respSim = edcHelper.session.get(simUrl, params=simParms)
             simstatus = respSim.status_code
+            if simstatus != 200:
+                print(f"error getting similar-cols-provider data for {href}")
+                continue
             # print ('\trc=' + str(respSim.status_code))
             simResult = respSim.json()
             hasSimLinks = False
@@ -251,7 +274,9 @@ def processFoundItem(foundItem):
                 hasSimLinks = True
 
                 dstId = dstObject["id"]
-                dstassoc = dstObject["association"]
+                to_resource = dstId.split("://")[0]
+
+                # dstassoc = dstObject["association"]
                 # print("\tsimilar column link: " + dstId)
                 columnLinks += 1
                 for linkProps in dstObject["linkProperties"]:
@@ -275,7 +300,19 @@ def processFoundItem(foundItem):
                 simLinks += 1
                 mem.simLinks += 1
                 mem.colWriter.writerow(
-                    [itemId, dstId, scoreSim, valSim, frqSim, patternSim, nameSim,]
+                    [
+                        from_resource,
+                        itemId,
+                        to_resource,
+                        dstId,
+                        scoreSim,
+                        valSim,
+                        frqSim,
+                        patternSim,
+                        nameSim,
+                        get_parent_id(itemId),
+                        get_parent_id(dstId),
+                    ]
                 )
 
             if hasSimLinks:
@@ -285,28 +322,56 @@ def processFoundItem(foundItem):
         mem.maxSim = simLinks
         mem.maxSimId = itemId
 
-    mem.countWriter.writerow([itemId.split(":")[0], itemId, itemId.split("/")[-1], simLinks, nameCount, pattCount, valuCount, freqCount])
+    mem.countWriter.writerow(
+        [
+            itemId.split(":")[0],
+            itemId,
+            itemId.split("/")[-1],
+            simLinks,
+            nameCount,
+            pattCount,
+            valuCount,
+            freqCount,
+        ]
+    )
     return hasSim, simLinks
 
 
 def initCsvOutFile():
     # csvFileName = "out/similarObjectsByResource.csv"
     columnHeader = [
+        "From Resource",
         "ObjectId",
+        "To Resource",
         "SimilarObjectId",
         "Confidence",
         "Data Similarity",
         "Frequency Similarity",
         "Pattern Similarity",
         "Name Similarity",
+        "From Struct",
+        "To Struct",
     ]
     mem.fCSVFile = open(mem.outFile, "w", newline="", encoding="utf-8")
     mem.colWriter = csv.writer(mem.fCSVFile)
     mem.colWriter.writerow(columnHeader)
 
-    mem.fSimCounts = open(mem.outFile.replace(".csv", "_counts.csv"), "w", newline="", encoding="utf-8")
+    mem.fSimCounts = open(
+        mem.outFile.replace(".csv", "_counts.csv"), "w", newline="", encoding="utf-8"
+    )
     mem.countWriter = csv.writer(mem.fSimCounts)
-    mem.countWriter.writerow(["resource", "id", "name", "sim count"])
+    mem.countWriter.writerow(
+        [
+            "resource",
+            "id",
+            "name",
+            "sim count",
+            "name count",
+            "pattern count",
+            "valuue count",
+            "freq count",
+        ]
+    )
 
 
 def main():
@@ -354,6 +419,7 @@ def main():
     # close files
     mem.fCSVFile.close()
     mem.fSimCounts.close()
+
 
 # call main - if not already called or used by another script
 if __name__ == "__main__":

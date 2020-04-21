@@ -44,8 +44,10 @@ argparser.add_argument(
     "-out",
     "--outFile",
     required=False,
-    help=("output file (csv) to create, either relative to current folder or an "
-          " absolute reference, default out/similarObjectsByResource.csv"),
+    help=(
+        "output file (csv) to create, either relative to current folder or an "
+        " absolute reference, default out/similarObjectsByResource.csv"
+    ),
     default="out/similarObjectsByResource.csv",
     type=str,
 )
@@ -172,7 +174,12 @@ def writeSimilarityResults(resourceName, theWriter, totalToExtract):
         itemsWithSim = 0
         simLinks = 0
         page += 1
-        parameters = {"q": query, "offset": offset, "pageSize": mem.pageSize}
+        parameters = {
+            "q": query,
+            "offset": offset,
+            "pageSize": mem.pageSize,
+            "sort": "id asc",
+        }
 
         page_time = time.time()
         print(
@@ -299,6 +306,8 @@ def processFoundItem(foundItem):
 
                 simLinks += 1
                 mem.simLinks += 1
+
+                # write individual object similar stats  (for each similar object)
                 mem.colWriter.writerow(
                     [
                         from_resource,
@@ -322,6 +331,7 @@ def processFoundItem(foundItem):
         mem.maxSim = simLinks
         mem.maxSimId = itemId
 
+    # write the total counts of similar items (with each metric count too)
     mem.countWriter.writerow(
         [
             itemId.split(":")[0],
@@ -361,16 +371,7 @@ def initCsvOutFile():
     )
     mem.countWriter = csv.writer(mem.fSimCounts)
     mem.countWriter.writerow(
-        [
-            "resource",
-            "id",
-            "name",
-            "sim count",
-            "name count",
-            "pattern count",
-            "valuue count",
-            "freq count",
-        ]
+        ["resource", "id", "name", "sim count", "name", "pattern", "value", "freq", ]
     )
 
 

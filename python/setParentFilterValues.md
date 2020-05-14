@@ -4,6 +4,8 @@ use this script to update in bulk relational objects with a custom attribute con
 
 * create a custom attribute:
 
+the data type should be set to String, the attribute can be multivalued or not, assign the custom attribute for all object form th relational model (filter by com.infa.ldm.relational) 
+
 ![Custom attribute definition](https://github.com/Informatica-EIC/REST-API-Samples/blob/master/img/custom_attribute_parent_definition.png?raw=true)
 
 * execute the script `setParentFilterValues.py`

@@ -4,8 +4,7 @@ Created on Jan 7, 2020
 @author: dwrigley
 
 usage:
-  listAndCountCustomAttributes -c/--edcurl" EDCURL (or env:INFA_EDC_URL)
-  -a/--auth BASICAUTH (or env:INFA_EDC_AUTH) -o OUTFOLDER
+  listAndCountCustomAttributes options
 
   output written to custom_attributes.csv
 
@@ -31,10 +30,11 @@ urllib3.disable_warnings()
 
 start_time = time.time()
 # initialize http header - as a dict
-# header = {}
-# auth = None
+header = {}
+auth = None
 
-pageSize = 500  # number of objects for each page/chunk
+# number of objects for each page/chunk
+pageSize = 500
 
 # the csv lineage file to write to
 csvFileName = "custom_attributes.csv"
@@ -58,7 +58,7 @@ def main():
              + count the # of objects using the attribute
     """
     p = PurePath(sys.argv[0])
-    print(f"{p.name} starting in {os.getcwd()}")
+    print(f"{p.name} starting in {os.getcwd()} args={sys.argv[1:]}")
 
     args, unknown = parser.parse_known_args()
     # initialize http session to EDC, storeing the baseurl
@@ -67,6 +67,10 @@ def main():
         f"args from cmdline/env vars: url={edcSession.baseUrl}"
         f"  session={edcSession.session}"
     )
+
+    # test the connection - see if the version is 10.4.0 or later
+    rc, json = edcSession.validateConnection()
+    print(f"validated connection: {rc} {json}")
 
     # create the output path if it does not exist
     if args.output is not None:
@@ -135,7 +139,14 @@ def getCustomAttributes(session, resturl, colWriter):
 
     while offset < total:
         page += 1
-        parms = {"offset": offset, "pageSize": pageSize}
+        # for edc 10.4.0 + we can filter by packageId (only lising custom attributes)
+        parms = {
+            "offset": offset,
+            "pageSize": pageSize,
+        }
+        if edcSession.edcversion >= 10400:
+            parms["packageId"] = "com.infa.appmodels.ldm"
+            # print(f"\tv10.4+ found - parms={parms}")
 
         # execute catalog rest call, for a page of results
         try:
@@ -159,6 +170,10 @@ def getCustomAttributes(session, resturl, colWriter):
         resultJson = resp.json()
         # store the total, so we know when the last page of results is read
         total = resultJson["metadata"]["totalCount"]
+        print(
+            f"\tprocessing page {page} with {offset+1}-{offset+pageSize} "
+            f"objects out of {total}"
+        )
         # for next iteration
         offset += pageSize
 

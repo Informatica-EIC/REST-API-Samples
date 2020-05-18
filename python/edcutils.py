@@ -193,7 +193,7 @@ def createResourceUsingSession(url, session, resourceName, resourceJson):
         apiURL, data=json.dumps(resourceJson), headers=header
     )
     print("\trc=" + str(newResourceResp.status_code))
-    print("\tbody=" + str(newResourceResp.text))
+    # print("\tbody=" + str(newResourceResp.text))
 
     return newResourceResp.status_code
 

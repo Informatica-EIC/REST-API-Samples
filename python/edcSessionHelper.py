@@ -43,9 +43,10 @@ class EDCSession:
 
     def __init__(self):
         self.baseUrl = None
-        self.session = None
+        self.session: requests.session = None
         self.argparser = argparse.ArgumentParser(add_help=False)
         self.__setup_standard_cmdargs__()
+        self.edcversion = 0
 
     def __setup_standard_cmdargs__(self):
         # check for args overriding the env vars
@@ -186,39 +187,13 @@ class EDCSession:
         # if there is still no auth - then prompt for id and pwd
         if auth is None:
             print(
-                f"no credentials in ENV var/.env file/command-line - prompting for id/pwd"
+                f"no credentials in ENV var/.env file/command-line - "
+                "prompting for id/pwd"
             )
             args.user = input("\tuser id: ")
             p = getpass.getpass(prompt="\tpassword for user=" + args.user + ": ")
             b64_auth_str = base64.b64encode(bytes(f"{args.user}:{p}", "utf-8"))
             auth = f'Basic {b64_auth_str.decode("utf-8")}'
-
-        """
-
-        print(f"checking command-line args {args}")
-        if args.edcurl is None and args.user is None:
-            print("\t\tno over-riding command-line arguments passed - skipping")
-            # prompt user and password???
-            print("prompting for user-id and password - for future runs, best to add INFA_EDC_AUTH to a .env file")
-            args.user = input("user id: ")
-            p = getpass.getpass(
-                    prompt="\nenter the password for user=" + args.user + ":"
-                )
-            b64_auth_str = base64.b64encode(bytes(f"{args.user}:{p}", "utf-8"))
-            auth = f'Basic {b64_auth_str.decode("utf-8")}'
-        else:
-            print(f"checking cmd args args passed={args}")
-            if args.edcurl is not None:
-                if self.baseUrl != args.edcurl:
-                    print(f"\t\tusing edcurl from command-line parameter {args.edcurl}")
-                    self.baseUrl = args.edcurl
-            if args.user is not None:
-                p = getpass.getpass(
-                    prompt="\nenter the password for user=" + args.user + ":"
-                )
-                b64_auth_str = base64.b64encode(bytes(f"{args.user}:{p}", "utf-8"))
-                auth = f'Basic {b64_auth_str.decode("utf-8")}'
-        """
 
         if args.sslcert is not None:
             if args.sslcert == "False":
@@ -245,8 +220,8 @@ class EDCSession:
 
     def initSession(self, catalog_url, catalog_auth, verify):
         """
-        given a valid URL and auth - setup a requests session to use for subsequent calls
-        verify can be False
+        given a valid URL and auth - setup a requests session to use
+        for subsequent calls, verify can be False
         """
         self.session = requests.Session()
         self.baseUrl = catalog_url
@@ -269,16 +244,25 @@ class EDCSession:
             url = urljoin(self.baseUrl, "access/2/catalog/data/productInformation")
             # url = self.baseUrl + "access/2/catalog/data/productInformation"
             resp = self.session.get(url, timeout=3)
-            print(f"api status code={resp.status_code}")
+            print(f"\tapi status code={resp.status_code}")
             if resp.status_code == 200:
-                # valid and 10.4+
+                # valid and 10.4+, get the actual version
+                rel_version = resp.json().get("releaseVersion")
+                if rel_version.count(".") == 2:
+                    # version is something like 10.4.0
+                    # but we need to make it a 4 part name like 10.4.0.0
+                    rel_version = rel_version + ".0"
+                # remove the "." from the version
+                rel_nbr = int(rel_version.replace(".", ""))
+                self.edcversion = rel_nbr
+                # print(f"release version={rel_version} {rel_nbr}")
                 return resp.status_code, resp.json()
             elif resp.status_code == 400:
                 print("catalog server is not v10.4 or later - trying another method...")
                 # invalid request - try another api call
                 url = urljoin(self.baseUrl, "access/1/catalog/data")
                 resp = self.session.get(url, timeout=3)
-                print(f"2nd try status code = {resp.status_code}")
+                print(f"\t2nd try status code = {resp.status_code}")
             else:
                 print(f"error connecting {resp.json()}")
             return resp.status_code, resp.json()
@@ -287,4 +271,3 @@ class EDCSession:
             print(e)
             # exit if we can't connect
             return 0, None
-

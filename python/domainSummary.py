@@ -64,7 +64,7 @@ parser.add_argument("-o", "--output", default="./out", help="output folder - e.g
 parser.add_argument(
     "--csvoutput",
     dest="writeToCSV",
-    default=True,
+    default=False,
     action="store_true",
     help="write output to csv (multiple files) in addition to excel",
 )

@@ -6,3 +6,5 @@ output1.csv
 python/.env
 python/.env*
 java/lib/client.jar
+*.code-workspace
+.vscode/*

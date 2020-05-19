@@ -75,8 +75,9 @@ def main():
     print(f"checking cd: {args.composite_domain}")
     rc, domain_json = get_cd(edcSession.session, args.composite_domain)
 
-    if domain_json is None:
-        print("unable to get composite domain content, exiting")
+    # if domain_json is None:
+    if rc != 200:
+        print(f"unable to get composite domain content, exiting - reason={domain_json}")
         return
 
     print("parse the domain...")
@@ -102,26 +103,36 @@ def main():
         f"\tupdate the exting domain (Y|y=yes, anything else = prompt for new name : "
     )
     if update_existing.lower() != "y":
-        new_cd_name = input(f"enter new composite-domain name to create: ")
-        if len(new_cd_name.trim() == 0):
+        new_cd_name = input_name_nospace("enter new composite-domain name to create")
+        if len(new_cd_name.strip()) == 0:
             print("no name entered, no composite domain created.")
-            exit(1)
+            return
+
+        # check if domain already exists - then create if not (better error than just generic 500)
+        exists_rc, exists_json = get_cd(edcSession.session, new_cd_name)
+        if exists_rc == 200:
+            print(f"composite domain {new_cd_name} already exists, exiting")
+            return
 
         # create the new composite domain
         domain_json["domainName"] = new_cd_name
         domain_json["domainId"] = ""
         domain_json["domainType"] = "CDD"
-        print(f"ready to create new cd {new_cd_name}")
+        print(f"ready to create new cd: {new_cd_name}")
         resturl = f"{edcSession.baseUrl}/access/1/catalog/compositedomains"
         header = {"Content-Type": "application/json"}
         rc = edcSession.session.post(
             resturl, data=json.dumps(domain_json), headers=header
         )
+
+        if rc.status_code == 200:
+            print(f"Success - status_code={rc.status_code} composite domain: {new_cd_name} was created")
+
         # print(rc)
 
     else:
         domain_json["domainType"] = "CDD"
-        print(f"ready to update existing domain {args.composite_domain}")
+        print(f"ready to update existing cd: {args.composite_domain}")
         resturl = (
             f"{edcSession.baseUrl}/access/1/catalog/"
             f"compositedomains/{args.composite_domain}"
@@ -130,11 +141,11 @@ def main():
         rc = edcSession.session.put(
             resturl, data=json.dumps(domain_json), headers=header
         )
+        if rc.status_code == 200:
+            print(f"Success - status_code={rc.status_code} composite domain: {args.composite_domain} was updated")
         # print(rc)
 
-    if rc.status_code == 200:
-        print(f"Success - status_code={rc.status_code}")
-    else:
+    if rc.status_code != 200:
         print(f"operation failed: status_code={rc.status_code} reason={rc.reason}")
 
     # out_json = json.dumps(domain_json)
@@ -163,6 +174,20 @@ def input_valid_number(max: int) -> int:
             # valid number entered
             break
     return nbr
+
+
+def input_name_nospace(prompt_message: str) -> str:
+    """
+    input a name - that cannot have spaces - empty string returned is ok
+    """
+    while True:
+        entered_name = input(f"{prompt_message}: ")
+        # print(f"value entered >>>{entered_name}<<<")
+        if ' ' in entered_name or '\t' in entered_name:
+            print("\tname cannot contain whitespace characters, please try again...")
+            continue
+        break
+    return entered_name
 
 
 def assemble_combinations(domain_combinations: list, domain_objects: dict):
@@ -219,8 +244,8 @@ def get_cd(session, cd_name):
 
     if resp.status_code != 200:
         # some error - e.g. catalog not running, or bad credentials
-        print(f"\terror! {resp.status_code} reason={resp.reason} exiting")
-        sys.exit(1)
+        # print(f"\terror! {resp.status_code} reason={resp.reason}")
+        return resp.status_code, resp.reason
 
     # must be 200
     # print(resp.status_code, resp.json())

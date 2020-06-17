@@ -25,10 +25,10 @@ import com.infa.products.ldm.core.rest.v2.client.models.ObjectResponse;
 import com.infa.products.ldm.core.rest.v2.client.models.ObjectsResponse;
 
 /**
- * what linked - column level - summary links
+ * what linked - table level - summary links  (cloned from column version - probably needs some cleanup)
  * 
  * queries EDC to:
- * 	- get a list of all tables/views (todo: add any fields from xml/flat/delimited files
+ * 	- get a list of all datasets 
  *  - looks for dstLinks that use the "core.DataSetDataFlow" link type
  *  	- this is the link type used for summary links at the dataset level
  *  	- writes to file the from/to objects + some linking information
@@ -39,12 +39,12 @@ import com.infa.products.ldm.core.rest.v2.client.models.ObjectsResponse;
  * @author dwrigley
  *
  */
-public class LineageSummaryColumns {
+public class LineageSummaryTables {
 	
 	/**
 	 * constructor
 	 */
-	public LineageSummaryColumns() {
+	public LineageSummaryTables() {
 		specialClasses.add("com.infa.ldm.file.delimited.DelimitedField");
 		specialClasses.add("com.infa.ldm.file.json.JSONField");
 		specialClasses.add("com.infa.ldm.file.xml.XMLField");
@@ -60,7 +60,7 @@ public class LineageSummaryColumns {
 		String user="Administrator";
 		String pwd="Administrator";
 		String url="http://napslxapp01:9085/access/2";
-		String outFolder="c:\\data\\wtf\\";
+		String outFolder=".";
 		String resourceName="<all>";
 		String fileNamePrefix="";
 		String edcQuery="";
@@ -104,9 +104,9 @@ public class LineageSummaryColumns {
 			includeRefObjects=Boolean.parseBoolean(prop.getProperty("lineageSummary.includeRefObjects", "false"));
 			
 			fileNamePrefix = prop.getProperty("lineageSummary.filePrefix");
-			edcQuery = prop.getProperty("lineageSummary.query", "");
+			edcQuery = prop.getProperty("lineageSummary.table.query", "core.allclassTypes:core.DataSet");
 			if (edcQuery.isEmpty() ) {
-				System.out.println("setting in property file: lineageSummary.query - has no content! - exiting" );
+				System.out.println("setting in property file: lineageSummary.table.query - has no content! - exiting" );
 				System.exit(0);
 			}
 //			System.out.println(edcQuery);
@@ -122,7 +122,7 @@ public class LineageSummaryColumns {
 			url = url + "/access/2";
 		}
 		
-		System.out.println("LineageSummary - Column edition:" + url + " user=" + user + " pwd=" + pwd.replaceAll(".", "*") + " " + resourceName);
+		System.out.println("LineageSummary - Table edition:" + url + " user=" + user + " pwd=" + pwd.replaceAll(".", "*") + " " + resourceName);
 		System.out.println("\tincluding reference objects:" + includeRefObjects);
 
 		// test
@@ -134,7 +134,7 @@ public class LineageSummaryColumns {
 		// initialize the rest api
 		APIUtils.setupOnce(url, user, pwd);
 		
-		LineageSummaryColumns lineageSummary = new LineageSummaryColumns();
+		LineageSummaryTables lineageSummary = new LineageSummaryTables();
 //		String test="datalake://Hive Metastore/datalake/acme_hive_customer/cust_country_iso";
 //		System.out.println(lineageSummary.getIdPart(test, 0).replaceAll(":", ""));
 		
@@ -201,21 +201,10 @@ public class LineageSummaryColumns {
 		ArrayList<String> sort_attrs = new ArrayList<String>();
 		sort_attrs.add("id asc");
 		ArrayList<String> include_links = new ArrayList<String>();
-		include_links.add("core.DirectionalDataFlow");
-		include_links.add("com.infa.ldm.etl.DetailedDataFlow");
+		include_links.add("core.DataSetDataFlow");
+		include_links.add("com.infa.ldm.etl.DetailedDataSetDataFlow");
+//		include_links.add("com.infa.ldm.etl.DetailedDataFlow");
 		
-		//Standard Lucene style object query to get assets of a given type from a given resource.
-//		String query="core.allclassTypes:\"com.infa.ldm.relational.Column\" or core.allclassTypes:\"com.infa.ldm.relational.ViewColumn\"" ;
-//		String query="core.allclassTypes:\"com.infa.ldm.relational.Column\" or core.allclassTypes:\"com.infa.ldm.relational.ViewColumn\"" 
-//				+ " or core.allclassTypes:com.infa.ldm.file.delimited.DelimitedField";
-		
-//		query = "core.allclassTypes:("
-//				+ "com.infa.ldm.relational.Column OR " 
-//				+ "com.infa.ldm.relational.ViewColumn OR "
-//				+ "com.infa.ldm.file.delimited.DelimitedField OR "
-//				+ "com.infa.ldm.file.xml.XMLFileField OR "
-//				+ "com.infa.ldm.file.json.JSONField"
-//				+ ")";
 		System.out.println("query=" + query);
 		
 		
@@ -314,7 +303,7 @@ public class LineageSummaryColumns {
 						numDstLinks++;
 						pageDstLinks++;
 						// check the association type
-						if(lr.getAssociation().equals("core.DirectionalDataFlow")) {
+						if(lr.getAssociation().equals("core.DataSetDataFlow")) {
 							linkCount++;
 							numDstSummaryLineage++;
 							
@@ -360,7 +349,7 @@ public class LineageSummaryColumns {
 //										+ APIUtils.getValue(or, "core.resourceType") + sepa
 										+ StringEscapeUtils.escapeCsv(or.getId()) + sepa 
 										+ StringEscapeUtils.escapeCsv(fmClassType) + sepa  
-										+ StringEscapeUtils.escapeCsv(fromSchemaName) + sepa
+//										+ StringEscapeUtils.escapeCsv(fromSchemaName) + sepa
 //										+ getIdPart(or.getId(), -3) + sepa
 										+ StringEscapeUtils.escapeCsv(fromTableName) + sepa
 //										+ getParentNameFromId(or.getId()) + sepa
@@ -372,7 +361,7 @@ public class LineageSummaryColumns {
 										+ StringEscapeUtils.escapeCsv(getIdPart(lr.getId(), 0).replaceAll(":", "")) + sepa     
 										+ StringEscapeUtils.escapeCsv(lr.getId()) + sepa  
 										+ StringEscapeUtils.escapeCsv(lr.getClassType()) + sepa  
-										+ StringEscapeUtils.escapeCsv(toSchemaName)	+ sepa	// schema name
+//										+ StringEscapeUtils.escapeCsv(toSchemaName)	+ sepa	// schema name
 //										+ getIdPart(lr.getId(), -3)	+ sepa	// schema name
 										+ StringEscapeUtils.escapeCsv(toTableName) + sepa   // table name
 //										+ getParentNameFromId(lr.getId()) + sepa   // table name
@@ -389,7 +378,7 @@ public class LineageSummaryColumns {
 						}  // end of core.DirectionalDataFlow
 						
 						// stats gathering - count the # of DetailedDataFlow links
-						if(lr.getAssociation().equals("com.infa.ldm.etl.DetailedDataFlow")) {
+						if(lr.getAssociation().equals("com.infa.ldm.etl.DetailedDataSetDataFlow")) {
 							numDstDetailLineage++;
 						}
 						
@@ -400,7 +389,7 @@ public class LineageSummaryColumns {
 					for(LinkedObjectResponse lr : or.getSrcLinks()) {
 						numSrcLinks++;
 						pageSrcLinks++;
-						if(lr.getAssociation().equals("core.DirectionalDataFlow")) {
+						if(lr.getAssociation().equals("core.DataSetDataFlow")) {
 							numSrcSummaryLineage++;
 							
 							// experimental code starts here **********************************************************
@@ -434,7 +423,7 @@ public class LineageSummaryColumns {
 							outLine = getIdPart(lr.getId(), 0).replaceAll(":", "") + sepa   
 									+ StringEscapeUtils.escapeCsv(lr.getId()) + sepa 
 									+ StringEscapeUtils.escapeCsv(lr.getClassType()) + sepa  
-									+ StringEscapeUtils.escapeCsv(toSchemaName)	+ sepa	// schema name
+//									+ StringEscapeUtils.escapeCsv(toSchemaName)	+ sepa	// schema name
 									+ StringEscapeUtils.escapeCsv(toTableName) + sepa   // table name
 									+ StringEscapeUtils.escapeCsv(toColumnName)	+ sepa	// column name
 									+ StringEscapeUtils.escapeCsv(lr.getProviderId()) + sepa   // lineageScannerType
@@ -442,7 +431,7 @@ public class LineageSummaryColumns {
 									+ StringEscapeUtils.escapeCsv(APIUtils.getValue(or, "core.resourceName")) + sepa
 									+ StringEscapeUtils.escapeCsv(or.getId()) + sepa  
 									+ StringEscapeUtils.escapeCsv(fmClassType) + sepa  
-									+ StringEscapeUtils.escapeCsv(fromSchemaName) + sepa
+//									+ StringEscapeUtils.escapeCsv(fromSchemaName) + sepa
 									+ StringEscapeUtils.escapeCsv(fromTableName) + sepa
 									+ StringEscapeUtils.escapeCsv(fromColumnNane) + sepa
 									+ "\"" + StringEscapeUtils.escapeCsv(operation) + "\"";
@@ -458,7 +447,7 @@ public class LineageSummaryColumns {
 
 							
 						}
-						if(lr.getAssociation().equals("com.infa.ldm.etl.DetailedDataFlow")) {
+						if(lr.getAssociation().equals("com.infa.ldm.etl.DetailedDataSetDataFlow")) {
 							numSrcDetailLineage++;
 						}
 					}
@@ -467,7 +456,7 @@ public class LineageSummaryColumns {
 					columnStats.add(APIUtils.getValue(or, "core.resourceName") 
 							+ sepa + StringEscapeUtils.escapeCsv(or.getId())
 							+ sepa + StringEscapeUtils.escapeCsv(APIUtils.getValue(or, "core.classType"))
-							+ sepa + StringEscapeUtils.escapeCsv(getIdPart(or.getId(), -3))
+//							+ sepa + StringEscapeUtils.escapeCsv(getIdPart(or.getId(), -3))
 							+ sepa + StringEscapeUtils.escapeCsv(getIdPart(or.getId(), -2))
 							+ sepa + StringEscapeUtils.escapeCsv(objName)
 							+ sepa + numFacts 
@@ -504,14 +493,14 @@ public class LineageSummaryColumns {
 		// dump to file...
 		// rest api does not have sorted resultsets - so we sort here before writing to file
 		Collections.sort(columnReport);
-		columnReport.add(0, "fromResource,FromId,FromClass,fromSchema,fromTable,fromColumn,lineageScannerType,lineageScannerName,ToResource,ToId,ToClass,toSchema,toTable,toColumn,Operation");
-		String outFile = folder + "/" + prefix + "_Column_SummaryLineage.csv";
+		columnReport.add(0, "fromResource,FromId,FromClass,fromSchema,fromTable,lineageScannerType,lineageScannerName,ToResource,ToId,ToClass,toSchema,toTable,Operation");
+		String outFile = folder + "/" + prefix + "_Table_SummaryLineage.csv";
 		System.out.println("writing file: " + outFile + " - " + columnReport.size() + " records" );
 		this.dumpToFile(outFile, columnReport);
 		
 		Collections.sort(columnStats);
-		outFile = folder + "/" + prefix + "_Column_LinkCounts.csv";
-		columnStats.add(0, "resource,id,classType,schema,table,column,facts,srcLinks,dstLinks,srcSummaryLineage,dstSummaryLineage,srcDetailLineage,dstDetailedLineage");
+		outFile = folder + "/" + prefix + "_Table_LinkCounts.csv";
+		columnStats.add(0, "resource,id,classType,schema,table,facts,srcLinks,dstLinks,srcSummaryLineage,dstSummaryLineage,srcDetailLineage,dstDetailedLineage");
 		System.out.println("writing file: " + outFile + " - " + columnReport.size() + " records" );
 		this.dumpToFile(outFile, columnStats);
 

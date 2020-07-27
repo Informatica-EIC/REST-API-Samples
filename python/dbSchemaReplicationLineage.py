@@ -39,62 +39,57 @@ process:-
 """
 
 import platform
+import argparse
 import json
 import requests
 from requests.auth import HTTPBasicAuth
 import csv
 import edcutils
 import time
+import edcSessionHelper
 
-# ***********************************************************************
-# change these settings
-# ***********************************************************************
-leftResource = "ot_oracle"
-leftSchema = "OT"
-leftSchemaType = "com.infa.ldm.relational.Schema"
+# set edc helper session + variables (easy/re-useable connection to edc api)
+edcHelper = edcSessionHelper.EDCSession()
 
-rightSchema = "landing"
-rightResource = "landing_hive"
-rightSchemaType = "com.infa.ldm.relational.Schema"
-# rightTablePrefix - for cases where the replicated tables have a prefix added
-# (e.g. employee on left ot_employee on right)
-rightTablePrefix = ""
-# Note: for SAP Hana DB - schema type is different:-
-# com.infa.ldm.extended.saphanadatabase.Schema
-
-catalogServer = "http://napslxapp01:9085"
-uid = ""
-pwd = ""
-
-"""
-# if using base64 encoded credentials - you don't need uid/pwd
-# you can just use authCredentials- with the correct value
-# comment lines with uid/pwd and uncomment the same line using only header
-# (references to authCredentials)
-"""
-# authCredentials="Basic QWRtaW5pc3RyYXRvcjpBZG1pbmlzdHJhdG9y"
-
-# format the csv file name for custom lineage
-csvPrefix = "schemaLineage"
-csvFolder = "out"
-# ***********************************************************************
-# end of settings that should be changed
-# ***********************************************************************
-
-# set the csv fileName
-csvFileName = (
-    csvFolder
-    + "/"
-    + csvPrefix
-    + "_"
-    + leftSchema.lower()
-    + "_"
-    + rightSchema.lower()
-    + ".csv"
+# define script command-line parameters (in global scope for gooey/wooey)
+parser = argparse.ArgumentParser(parents=[edcHelper.argparser])
+# add args specific to this utility (left/right resource, schema, classtype...)
+parser.add_argument(
+    "-lr", "--leftresource", required=False, help="name of the left resource to find objects"
+)
+parser.add_argument(
+    "-ls", "--leftschema", required=False, help="name of the left schema/container object"
+)
+parser.add_argument(
+    "-lt", "--lefttype", required=False, default="com.infa.ldm.relational.Schema", help="class type for the schema level object"
+)
+parser.add_argument(
+    "-rr", "--rightresource", required=False, help="name of the right resource to find objects"
+)
+parser.add_argument(
+    "-rs", "--rightschema", required=False, help="name of the right schema/container object"
+)
+parser.add_argument(
+    "-rt", "--righttype", required=False, default="com.infa.ldm.relational.Schema", help="class type for the right schema level object"
+)
+parser.add_argument(
+    "-pfx", "--csvprefix", required=False, default="schemaLineage", help="prefix to use when creating the output csv file"
+)
+parser.add_argument(
+    "-rtp", "--righttableprefix", required=False, default="", help="table prefix for right datasets"
+)
+parser.add_argument(
+    "-o",
+    "--outDir",
+    default="out",
+    required=False,
+    help=(
+        "output folder to write results - default = ./out "
+        " - will create folder if it does not exist"
+    ),
 )
 
 
-# function - process a single schema - get columns into memory (dict)
 def getSchemaContents(schemaName, schemaType, resourceName):
     """
     given a schema name, schema class type (e.g. hanadb is different)
@@ -115,33 +110,23 @@ def getSchemaContents(schemaName, schemaType, resourceName):
     schemaDict = {}
     tableNames = {}
 
-    url = catalogServer + "/access/2/catalog/data/objects"
-    query = (
-        "core.resourceName:"
-        + resourceName
-        + " and core.classType:"
-        + schemaType
-        + " and core.name_lc_exact:"
-        + schemaName
+    # url = catalogServer + "/access/2/catalog/data/objects"
+    url = edcHelper.baseUrl + "/access/2/catalog/data/objects"
+    query = (f'+core.resourceName:"{resourceName}"'
+        + f' +core.classType:"{schemaType}"'
+        + f' +core.name:"{schemaName}"'
     )
     parameters = {"q": query, "offset": 0, "pageSize": 1}
-    # header using uid/pwd (no Authorization)
-    header = {"Accept": "application/json"}
-    # header using Authorization - no need to use uid/pwd in the get call
-    # header = {"Accept": "application/json", "Authorization": authCredentials}
-
     print("\tquery=" + query)
-    # print("\theader=" + str(header))
 
     schemaId = None
     tableCount = 0
     columnCount = 0
     # make the call to find the schema object
-    response = requests.get(
-        url, params=parameters, headers=header, auth=HTTPBasicAuth(uid, pwd)
-    )
-    # response = requests.get(url,params=parameters,headers=header)
+    response = edcHelper.session.get(url, params=parameters, timeout=3)
+    print(f"session get finished: {response.status_code}")
     rc = response.status_code
+
     if rc != 200:
         print("error reading object: rc=" + str(rc) + " response:" + str(response.json))
         if rc == 401:
@@ -161,7 +146,7 @@ def getSchemaContents(schemaName, schemaType, resourceName):
         # get the tables & columns
         print("\tfound schema: " + schemaName + " id=" + schemaId)
 
-        lineageURL = catalogServer + "/access/2/catalog/data/relationships"
+        lineageURL = edcHelper.baseUrl + "/access/2/catalog/data/relationships"
         lineageParms = {
             "seed": schemaId,
             "association": "core.ParentChild",
@@ -175,22 +160,16 @@ def getSchemaContents(schemaName, schemaType, resourceName):
             "\tGET child rels for schema: " + lineageURL + " parms=" + str(lineageParms)
         )
         # get using uid/pwd
-        lineageResp = requests.get(
+        lineageResp = edcHelper.session.get(
             lineageURL,
             params=lineageParms,
-            headers=header,
-            auth=HTTPBasicAuth(uid, pwd),
         )
-        # credentials are in the header
-        # lineageResp = requests.get(lineageURL,params=lineageParms,headers=header)
         lineageStatus = lineageResp.status_code
         print("\tlineage resp=" + str(lineageStatus))
         if lineageStatus != 200:
             print(
-                "error getting schema contents (tables) rc="
-                + str(rc)
-                + " response:"
-                + str(response.json)
+                f"error getting schema contents (tables) rc={rc}"
+                f" response:{response.json}"
             )
             if rc == 401:
                 print(
@@ -267,13 +246,26 @@ def main():
            works with v10.2.1+
 
     """
+    args = args, unknown = parser.parse_known_args()
+    # setup edc session and catalog url - with auth in the session header,
+    # by using system vars or command-line args
+    edcHelper.initUrlAndSessionFromEDCSettings()
+
+    print(f"command-line args parsed = {args} ")
+
     start_time = time.time()
+
     print("dbSchemaReplicationLineage:start")
-    print("Catalog=" + catalogServer)
-    print("left:  resource=" + leftResource)
-    print("left:    schema=" + leftSchema)
-    print("right: resource=" + rightResource)
-    print("right:   schema=" + rightSchema)
+    print(f"Catalog={edcHelper.baseUrl}")
+    print(f"left:  resource={args.leftresource}")
+    print(f"left:    schema={args.leftschema}")
+    print(f"left:      type={args.lefttype}")
+    print(f"right:  resource={args.rightresource}")
+    print(f"right:    schema={args.rightschema}")
+    print(f"right:      type={args.righttype}")
+    print(f"output folder:{args.outDir}")
+    print(f"output file prefix:{args.csvprefix}")
+    print(f"right table prefix:{args.righttableprefix}")
 
     # initialize csv output file
     columnHeader = [
@@ -284,39 +276,35 @@ def main():
         "To Object",
     ]
 
+    # set the csv fileName
+    csvFileName = (
+        f"{args.outDir}/{args.csvprefix}_{args.leftschema.lower()}"
+        f"_{args.rightschema.lower()}.csv"
+    )
     # python 3 & 2.7 use different methods
     print("initializing file: " + csvFileName)
-    if str(platform.python_version()).startswith("2.7"):
-        fCSVFile = open(csvFileName, "w")
-    else:
-        fCSVFile = open(csvFileName, "w", newline="", encoding="utf-8")
+    fCSVFile = open(csvFileName, "w", newline="", encoding="utf-8")
     colWriter = csv.writer(fCSVFile)
     colWriter.writerow(columnHeader)
 
     # get the objects from the left schema into memory
     print(
-        "get left schema: name="
-        + leftSchema
-        + " resource="
-        + leftResource
-        + " type="
-        + leftSchemaType
+        f"get left schema: name={args.leftschema}"
+        f" resource={args.leftresource}"
+        f" type={args.lefttype}"
     )
     leftObjects, leftSchemaId = getSchemaContents(
-        leftSchema, leftSchemaType, leftResource
+        args.leftschema, args.lefttype, args.leftresource
     )
 
     # get the objects from the right schema into memory
     print(
-        "get left schema: name="
-        + rightSchema
-        + " resource="
-        + rightResource
-        + " type="
-        + rightSchemaType
+        f"get right schema: name={args.rightschema}"
+        f" resource={args.rightresource}"
+        f" type={args.righttype}"
     )
     rightObjects, rightSchemaId = getSchemaContents(
-        rightSchema, rightSchemaType, rightResource
+        args.rightschema, args.righttype, args.rightresource
     )
 
     matches = 0
@@ -331,8 +319,8 @@ def main():
         print("\nprocessing: " + str(len(leftObjects)) + " objects (left side)")
         for leftName, leftVal in leftObjects.items():
             # if the target is using a prefix - add it to leftName
-            if len(rightTablePrefix) > 0:
-                leftName = rightTablePrefix.lower() + leftName
+            if len(args.righttableprefix) > 0:
+                leftName = args.righttableprefix.lower() + leftName
 
             # print("key=" + leftName + " " + leftVal + " " + str(leftName.count('.')))
             if leftName in rightObjects.keys():
@@ -362,11 +350,7 @@ def main():
         print("error getting schema info... - no linking/lineage created")
 
     print(
-        "dbSchemaLineageGen:finished. "
-        + str(matches)
-        + " links created, "
-        + str(missing)
-        + " missing (found in left, no match on right)"
+        f"dbSchemaLineageGen:finished. {matches} links created, {missing} missing (found in left, no match on right)"
     )
     print("run time = %s seconds ---" % (time.time() - start_time))
 

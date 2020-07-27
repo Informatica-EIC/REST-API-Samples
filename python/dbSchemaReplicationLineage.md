@@ -3,29 +3,31 @@
 ## Purpose
 provides the ability to link tables/columns in a database schema that are replicated to other schemas/databases & no scanner exists to automatcially document these relationships.  (e.g. sqoop, scripts/code, goldengate ...)
 
-## Usage 
-edit dbSchemaReplicationLineage.py setting values for
+## Usage
+Note:  usage has changed - no settings are hard coded, all can be provided via command-line arguments
 
-- `leftResource` - name of the resource containing the schema on the left
-- `leftSchema` - name of the schema on the left
-- `leftSchemaType` - classtype of the left schema (e.g. 'com.infa.ldm.relational.Schema') - some scanners (e.g. hana db have different class types)
+`python dbSchemaReplicationLineage.py <options>
 
-- `rightResource` - name of the resource containing the schema on the right
-- `rightSchema` - name of the schema on the left
-- `rightSchemaType` - classtype of the right schema 
+- `-lr` or `--leftresource` - name of the resource containing the schema on the left
+- `-ls` or `--leftschema` - name of the schema on the left
+- `-lt` or `leftschematype` - classtype of the left schema (e.g. 'com.infa.ldm.relational.Schema') - some scanners (e.g. hana db have different class types)
 
-catalog connection settings
+- `-rr` or `rightresource` - name of the resource containing the schema on the right
+- `-rs` or `rightschema` - name of the schema on the left
+- `-rt` or `rightschemaType` - classtype of the right schema
+- `-rtp` or `--righttableprefix` - prefix to use for target tables (remove the prefix to match on left table)
 
-- `catalogServer` - host:port for the catalog service.  e.g. 'http://napslxapp01:9085'
-- `uid` - user id.  if using ldap - [security_domain]\[userid]
-- `pwd` - password for uid
+catalog connection settings (can/should be passed via .env file)
 
-  Note:  you can also use base64 encoded string instead of uid/password - see code for notes (also see `encodeUser.py`)
+- `-c` or `--edcurl` host:port for the catalog service.  e.g. 'http://napslxapp01:9085'
+- `-v` or `--envfile` reference to an environment file with settings for catalog and user id/pwd (encoded)'
+- `-a` pr `--auth` - user id/password, encoded - see `encodeUser.py` or `setupConnection.py` (but just use a .env file)
+
 
 csv file output settings
 
-- `csvPrefix` - prefix for the generated csv file - e.g. "schemaLineage"
-- `csvFolder` - folder to write the csv file, default/example "out"
+- `-pfx` or `--csvprefix` - prefix for the generated csv file - e.g. "schemaLineage"
+- `-out` or `--outDir` - folder to write the csv file, default/example "out"
 
 ## Lineage File Generated
 the file generated uses the direct lineage format, supported in EDC v10.2.1+ and available for 10.2.0 via patch, using object id's and specific relationships vs connection assignment.
@@ -34,34 +36,9 @@ when configuring the CustomLineage resource - you do not need to check "Auto Ass
 
 ## Example
 
-A table `OT.EMPLOYEES` exists in the resource named `ot_oracle`  
+A table `OT.EMPLOYEES` exists in the resource named `ot_oracle`
 A table `landing.employees` exists in the resource named `landing_hive`
 
-the following settings were used:-
-
-```
-#***********************************************************************
-# change these settings
-#***********************************************************************
-leftResource = 'ot_oracle'
-leftSchema = 'OT'
-leftSchemaType = 'com.infa.ldm.relational.Schema'
-
-rightSchema = 'landing'
-rightResource = 'landing_hive'
-rightSchemaType = 'com.infa.ldm.relational.Schema'
-
-catalogServer='http://napslxapp01:9085'
-uid='Administrator'
-pwd='Administrator'
-
-csvPrefix="schemaLineage"
-csvFolder="out"
-#***********************************************************************
-# end of settings that should be changed 
-#***********************************************************************
-
-```
 
 after running the script - the following lineage file was generated `schemaLineage_ot_landing.csv`:-
 

@@ -6,12 +6,7 @@ Created on Aug 7, 2018
 resolve links for External Database/Schema objects
 write a custom lineage file to import the links
 or
-options include to create links directly (via API)
-    (currently commented out - needs more testing + custom lineage is the better way)
-
-Note:  the code is still a work in progress
-       use/test at your own risk
-       (& contribute back if you make it better)
+options include to create links directly (via API) - via -i switch (or --edcImport)
 
 """
 import requests
@@ -22,46 +17,73 @@ import platform
 import edcutils
 import time
 import sys
+import argparse
+import edcSessionHelper
+import urllib3
+import os
+from pathlib import Path
 
-# import logging
+urllib3.disable_warnings()
 
+# set edc helper session + variables (easy/re-useable connection to edc api)
+edcHelper = edcSessionHelper.EDCSession()
 
-# ******************************************************
-# change these settings for your catalog service
-# ******************************************************
-catalogServer = "http://napslxapp01:9085"
-# catalogServer='http://18.236.138.21:9085'
-url = catalogServer + "/access/2/catalog/data/objects"
-header = {"Accept": "application/json"}
-parameters = {
-    "q": "core.classType:com.infa.ldm.relational.ExternalDatabase",
-    "offset": 0,
-    "pageSize": 1000,
-}
-uid = ""
-pwd = ""
+# define script command-line parameters (in global scope for gooey/wooey)
+parser = argparse.ArgumentParser(parents=[edcHelper.argparser])
 
-# alternate for finding links for a specific resource/db
-# core.classType:com.infa.ldm.relational.ExternalDatabase
-# and core.resourceName:<resourcename> and core.name:External
+# add args specific to this utility (left/right resource, schema, classtype...)
+parser.add_argument(
+    "-f",
+    "--csvFileName",
+    default="dbms_externalDBLinks.csv",
+    required=False,
+    help=(
+        "csv file to create/write (no folder) default=dbms_externalDBLinks.csv "
+    ),
+)
+parser.add_argument(
+    "-o",
+    "--outDir",
+    default="out",
+    required=False,
+    help=(
+        "output folder to write results - default = ./out "
+        " - will create folder if it does not exist"
+    ),
+)
 
-# the csv lineage file to write to
-csvFileName = "dbms_externalDBLinks.csv"
-csvFilePath = "out/"
+parser.add_argument(
+    "-i",
+    "--edcimport",
+    default=False,
+    # type=bool,
+    action='store_true',
+    help=(
+        "use the rest api to create the custom lineage resource and start the import process "
+    ),
+)
 
+parser.add_argument(
+    "-rn",
+    "--lineageResourceName",
+    default="externalDBlinker_lineage",
+    required=False,
+    help=(
+        "custom lineage resource name to create/update - default value=externalDBlinker_lineage"
+    ),
+)
+parser.add_argument(
+    "-rt",
+    "--lineageResourceTemplate",
+    default="template/custom_lineage_template.json",
+    required=False,
+    help=(
+        "custom lineage resource template (json format) use for creating a new resource - default value=template/custom_lineage_template.json"
+    ),
+)
 
-# resource import settings (used to create|update/upload file/start resource load)
-executeEDCImport = False
-lineageResourceName = "externalDBlinker_lineage"
-lineageResourceTemplate = "template/custom_lineage_template.json"
+# waitToComplete setting is not active (and probably not useful anyway)
 waitToComplete = False
-
-# csvFileName = "out/ABSQL_externalDBLinks.csv"
-
-# ******************************************************
-# end of parameters that should be changed
-# ******************************************************
-outputFile = csvFilePath + csvFileName
 
 
 def getColumnsForTable(tableId):
@@ -81,8 +103,8 @@ def getColumnsForTable(tableId):
         "offset": 0,
         "pageSize": 1,
     }  # pagesize can be 1 - since we are only passing the id
-    colResp = requests.get(
-        url, params=parameters, headers=header, auth=HTTPBasicAuth(uid, pwd)
+    colResp = edcHelper.session.get(
+        edcHelper.baseUrl + "/access/2/catalog/data/objects", params=parameters,
     )
     tableJson = colResp.json()
     # print(colResp.status_code)
@@ -138,19 +160,10 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
     if resType == "Oracle":
         dbUnknown = True
 
-    print(
-        "\ttype="
-        + classType
-        + " name="
-        + dbName
-        + " id="
-        + dbId
-        + " unknownDB:"
-        + str(dbUnknown)
-    )
+    print(f"\ttype={classType} name={dbName} id={dbId} unknownDB:{dbUnknown}")
 
     # get the lineage for the database object
-    lineageURL = catalogServer + "/access/2/catalog/data/relationships"
+    lineageURL = edcHelper.baseUrl + "/access/2/catalog/data/relationships"
     lineageParms = {
         "seed": dbId,
         "association": "core.ParentChild",
@@ -160,13 +173,13 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
         "includeTerms": "false",
         "removeDuplicateAggregateLinks": "false",
     }
-    print("\tLineage query for: " + dbName + "  params=" + str(lineageParms))
-    lineageResp = requests.get(
-        lineageURL, params=lineageParms, headers=header, auth=HTTPBasicAuth(uid, pwd)
+    print(f"\tLineage query for: {dbName} params={lineageParms}")
+    lineageResp = edcHelper.session.get(
+        lineageURL, params=lineageParms,
     )
 
     lineageStatus = lineageResp.status_code
-    print("\tlineage rc=" + str(lineageStatus))
+    print(f"\tlineage rc={lineageStatus}")
     lineageJson = lineageResp.text
 
     #  bug in the relationships api call - the items collection sould be
@@ -192,20 +205,16 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
             inEmbedded = lineageItem.get("inEmbedded")
             tableName = edcutils.getFactValue(inEmbedded, "core.name")
             print(
-                "\tprocessing table="
-                + tableName
-                + " schema="
-                + schemaName
-                + " db="
-                + dbName
-                + " id="
-                + inId
+                f"\tprocessing table={tableName} schema={schemaName}"
+                f" db={dbName} id={inId}"
             )
 
             # format the query to find the actual table
+            # "core.classType:(com.infa.ldm.relational.Table or com.infa.ldm.relational.View)  and core.name_lc_exact:"
             q = (
-                "core.classType:(com.infa.ldm.relational.Table or com.infa.ldm.relational.View)  and core.name_lc_exact:"
-                + tableName
+                "core.classType:(com.infa.ldm.relational.Table or com.infa.ldm.relational.View)  and core.name:\""
+                + tableName.lower()
+                + "\""
             )
             if dbUnknown and schemaName == "":
                 q = q + " and core.resourceName:" + resName
@@ -215,11 +224,9 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
             tableSearchParms = {"q": q, "offset": 0, "pageSize": 100}
             print("\t\tquery=" + str(tableSearchParms))
             # find the table - with name tableName
-            tResp = requests.get(
-                url,
+            tResp = edcHelper.session.get(
+                edcHelper.baseUrl + "/access/2/catalog/data/objects",
                 params=tableSearchParms,
-                headers=header,
-                auth=HTTPBasicAuth(uid, pwd),
             )
             tStatus = tResp.status_code
             print("\t\tquery rc=" + str(tStatus))
@@ -249,16 +256,8 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
                         tableMatchCount += 1
                         foundTabId = fromTableId
                         print(
-                            "\t\ttable name matches..."
-                            + theName
-                            + "=="
-                            + tableName
-                            + " "
-                            + inId
-                            + " "
-                            + foundTabId
-                            + " count/"
-                            + str(fromTableId.count("/"))
+                            f"\t\ttable name matches...{theName}=={tableName} {inId} {foundTabId} "
+                            f" count/{fromTableId.count('/')}"
                         )
                     else:
                         print(
@@ -292,7 +291,6 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
                     foundTabId, inId, "core.DataSetDataFlow", colWriter
                 )
                 tabLinks += 1
-
                 tabColsLinked = 0
 
                 # match the columns on the left/right side
@@ -309,39 +307,25 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
                         colLinks += 1
                     else:
                         print(
-                            "\t\t\tError: cannot find column "
-                            + toCol
-                            + " in table "
-                            + inId
+                            f"\t\t\tError: cannot find column {toCol} in table {inId}"
                         )
                         errors += 1
                 print(
-                    "\t\t\text cols:"
-                    + str(len(extCols))
-                    + " tablCols:"
-                    + str(len(tabCols))
-                    + " linked="
-                    + str(tabColsLinked)
+                    f"\t\t\text cols:{len(extCols)} tablCols:{len(tabCols)}"
+                    f" linked={tabColsLinked}"
                 )
                 # print("\t\t\tcolumns linked=" + str(tabColsLinked))
             else:
                 print(
-                    "\t\tmutlple possible matches found ("
-                    + str(tableMatchCount)
-                    + ") no links will be created"
+                    f"\t\tmutlple possible matches found ({tableMatchCount}"
+                    f") no links will be created"
                 )
             # flush the console buffer - for tailing the stdout log
             sys.stdout.flush()
 
     print(
-        "external database: "
-        + dbName
-        + " processed: tab/col links created: "
-        + str(tabLinks)
-        + "/"
-        + str(colLinks)
-        + " errors:"
-        + str(errors)
+        f"external database: {dbName} processed: tab/col links created: "
+        f"{tabLinks}/{colLinks} errors:{errors}"
     )
     print("")
     return tabLinks, colLinks, errors
@@ -357,27 +341,15 @@ def main():
     print("ExternalDBLinker started")
     start_time = time.time()
 
+    args = args, unknown = parser.parse_known_args()
+    # setup edc session and catalog url - with auth in the session header,
+    # by using system vars or command-line args
+    edcHelper.initUrlAndSessionFromEDCSettings()
+    print(f"command-line args parsed = {args} ")
+
     tableLinksCreated = 0
     columnLinksCreated = 0
     errorsFound = 0
-
-    """
-    logger = logging.getLogger('externalDBLinker')
-    logger.setLevel('DEBUG')
-
-    file_log_handler = logging.FileHandler('logfile.log')
-    logger.addHandler(file_log_handler)
-
-    stderr_log_handler = logging.StreamHandler()
-    logger.addHandler(stderr_log_handler)
-
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_log_handler.setFormatter(formatter)
-    stderr_log_handler.setFormatter(formatter)
-
-    logger.info('Info message')
-    logger.error('Error message')
-    """
 
     columnHeader = [
         "Association",
@@ -386,43 +358,44 @@ def main():
         "From Object",
         "To Object",
     ]
-    if str(platform.python_version()).startswith("2.7"):
-        fCSVFile = open(outputFile, "w")
-    else:
-        fCSVFile = open(outputFile, "w", newline="", encoding="utf-8")
-    print("custom lineage file initialized. " + outputFile)
+    outputFile = args.outDir + "/" + args.csvFileName
+    fullpath = os.path.abspath(outputFile)
+    fCSVFile = open(outputFile, "w", newline="", encoding="utf-8")
+    from pathlib import Path
+
+    print("custom lineage file initialized. " + outputFile + " RELATIVE=" +fullpath)
     colWriter = csv.writer(fCSVFile)
     colWriter.writerow(columnHeader)
 
+    parameters = {
+        "q": "core.classType:com.infa.ldm.relational.ExternalDatabase",
+        "offset": 0,
+        "pageSize": 1000,
+    }
+    url = edcHelper.baseUrl + "/access/2/catalog/data/objects"
+
     print(
         "executing query to find all external DB objects: "
-        + url
-        + " q="
-        + parameters.get("q")
+        f"{url} q={parameters.get('q')} {parameters}"
     )
-    resp = requests.get(
-        url, params=parameters, headers=header, auth=HTTPBasicAuth(uid, pwd)
-    )
+    resp = edcHelper.session.get(url, params=parameters)
     status = resp.status_code
     print("extDB query rc=" + str(status))
 
+    if status != 200:
+        print(f"error - expecting 200 rc, got {status} - message={resp.json()}")
+        return
+
     resultJson = resp.json()
     total = resultJson["metadata"]["totalCount"]
-    print("external db objects found... " + str(total))
+    print(f"external db objects found... {total}")
     currentDB = 0
 
     # for each externalDatabase object
     for extDBItem in resultJson["items"]:
         itemId = extDBItem["id"]
         currentDB += 1
-        print(
-            "processing database: "
-            + itemId
-            + " "
-            + str(currentDB)
-            + " of "
-            + str(total)
-        )
+        print(f"processing database: {itemId} {currentDB} of {total}")
         itemType = edcutils.getFactValue(extDBItem, "core.classType")
         itemName = edcutils.getFactValue(extDBItem, "core.name")
         resourceName = edcutils.getFactValue(extDBItem, "core.resourceName")
@@ -437,7 +410,7 @@ def main():
 
         sys.stdout.flush()
 
-    fCSVFile.close
+    fCSVFile.close()
     print("finished!")
     print("table links:   created=" + str(tableLinksCreated))
     print("column links:  created=" + str(columnLinksCreated))
@@ -447,16 +420,16 @@ def main():
     print("Finished - run time = %s seconds ---" % (time.time() - start_time))
 
     # call the resource create/update/load function to get the data imported into EDC
-    if executeEDCImport:
-        edcutils.createOrUpdateAndExecuteResource(
-            catalogServer,
-            uid,
-            pwd,
-            lineageResourceName,
-            lineageResourceTemplate,
-            csvFileName,
-            outputFile,
+    if args.edcimport and tableLinksCreated > 0:
+        edcutils.createOrUpdateAndExecuteResourceUsingSession(
+            edcHelper.baseUrl,
+            edcHelper.session,
+            args.lineageResourceName,
+            args.lineageResourceTemplate,
+            args.csvFileName,
+            fullpath,
             waitToComplete,
+            "LineageScanner"
         )
 
 

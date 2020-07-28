@@ -4,6 +4,8 @@ this utility is used to link any tables/columns that belong to ExternalDatabase 
 
 this happens when other databases are queried, usually in views, via dblinks (oracle) or direct database references in sql (sqlserver & sybase).
 
+### Note: for SQLServer databases, this utility is no longer necessary (v10.4.0+) - since connection assignments and reference objects are created with the scan (Auto Assign Connections=true)
+
 ## process outline
 - for each ExternalDatabase (found via query - using the parameters query `core.classType:com.infa.ldm.relational.ExternalDatabase`)
     - execute the rest api call `/access/2/catalog/data/relationships` to find all child object to a depth of 2 outward, including the `core.name` and `core.classType`
@@ -19,12 +21,11 @@ this happens when other databases are queried, usually in views, via dblinks (or
 a file named `out/externalDBLinks.csv` is created by this process, using the custom lineage format (including association name & id of the source/target objects) - no connection assignment necessary
 
 ## Usage
-edit externalDBlinker.py - changing the following settings
-- catalogServer - e.g. `http://napslxapp01:9085`
-- uid & pwd for your catalog
+syntax: `usage: externalDBLinker.py [-h] [-c EDCURL] [-v ENVFILE] [-a AUTH | -u USER] [-s SSLCERT] [-f CSVFILENAME] [-o OUTDIR] [-i] [-rn LINEAGERESOURCENAME] [-rt LINEAGERESOURCETEMPLATE]`
+
 
 to start the utility
-`python externalDBLinker.py`
+`python externalDBLinker.py <options>`
 
 by default - all log messages are written to the console (stdout) to re-direct to a file, use this syntax.
 
@@ -40,7 +41,7 @@ to create/update the resource directly in the catalog, upload the lineage file t
 - `lineageResourceName=`  resource name to create/update
 - `lineageResourceTemplate="template/custom_lineage_template.json"` - template to use to create the resource
 
-when setting executeEDTImport=True - it will call `edcutils.createOrUpdateAndExecuteResource` 
+when setting executeEDTImport=True - it will call `edcutils.createOrUpdateAndExecuteResource`
 
 ## Other Notes
 should work on all platforms (linux/mac/windows) using either python 2.7 or 3.x

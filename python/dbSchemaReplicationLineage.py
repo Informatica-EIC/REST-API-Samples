@@ -43,6 +43,7 @@ import argparse
 import json
 import requests
 from requests.auth import HTTPBasicAuth
+import urllib3
 import csv
 import edcutils
 import time
@@ -50,6 +51,9 @@ import edcSessionHelper
 
 # set edc helper session + variables (easy/re-useable connection to edc api)
 edcHelper = edcSessionHelper.EDCSession()
+
+# disable ssl cert warnings, when using self-signed certificate
+urllib3.disable_warnings()
 
 # define script command-line parameters (in global scope for gooey/wooey)
 parser = argparse.ArgumentParser(parents=[edcHelper.argparser])
@@ -350,7 +354,8 @@ def main():
         print("error getting schema info... - no linking/lineage created")
 
     print(
-        f"dbSchemaLineageGen:finished. {matches} links created, {missing} missing (found in left, no match on right)"
+        f"dbSchemaLineageGen:finished. {matches} links created, "
+        f"{missing} missing (found in left, no match on right)"
     )
     print("run time = %s seconds ---" % (time.time() - start_time))
 

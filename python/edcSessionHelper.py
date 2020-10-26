@@ -152,7 +152,7 @@ class EDCSession:
                 if edcauth is not None and edcauth != auth:
                     print(
                         f"\t\treplacing edc auth with INFA_EDC_AUTH value "
-                        "from {args.envfile}"
+                        f"from {args.envfile}"
                     )
                     auth = edcauth
             else:

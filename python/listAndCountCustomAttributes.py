@@ -146,6 +146,7 @@ def getCustomAttributes(session, resturl, colWriter):
         }
         if edcSession.edcversion >= 10400:
             parms["packageId"] = "com.infa.appmodels.ldm"
+            print(f"\tversion {edcSession.edcversion} > 10400 - adding package filter packageId=com.infa.appmodels.ldm")
             # print(f"\tv10.4+ found - parms={parms}")
 
         # execute catalog rest call, for a page of results

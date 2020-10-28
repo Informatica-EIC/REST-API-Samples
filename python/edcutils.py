@@ -6,7 +6,6 @@ utility functions for processing catalog objects
 @author: dwrigley
 """
 
-
 import requests
 import json
 from requests.auth import HTTPBasicAuth
@@ -85,18 +84,17 @@ def getResourceDefUsingSession(url, session, resourceName, sensitiveOptions=Fals
 
     """
 
-    print(
-        "getting resource for catalog:-"
-        + url
-        + " resource="
-        + resourceName
-    )
+    print("getting resource for catalog:-" + url + " resource=" + resourceName)
     apiURL = url + "/access/1/catalog/resources/" + resourceName
     if sensitiveOptions:
         apiURL += "?sensitiveOptions=true"
     # print("\turl=" + apiURL)
     header = {"Accept": "application/json"}
-    tResp = session.get(apiURL, params={}, headers=header, )
+    tResp = session.get(
+        apiURL,
+        params={},
+        headers=header,
+    )
     print("\tresponse=" + str(tResp.status_code))
     if tResp.status_code == 200:
         # valid - return the jsom
@@ -184,6 +182,38 @@ def updateResourceDef(url, user, pWd, resourceName, resJson):
         return tResp.status_code
 
 
+def updateResourceDefUsingSession(url, session, resourceName, resJson):
+    """
+    update a setting in an existing resource
+
+    returns rc=200 (valid) & other rc's from the put
+            resourceDef (json)
+
+    """
+
+    print("\tupdating resource for catalog:-" + url + " resource=" + resourceName)
+    # print("\t" + json.dumps(resJson))
+    apiURL = url + "/access/1/catalog/resources/" + resourceName
+    # print("\turl=" + apiURL)
+    header = {"Accept": "application/json", "Content-Type": "application/json"}
+    tResp = session.put(
+        apiURL,
+        data=json.dumps(resJson),
+        headers=header,
+    )
+    # print("\tresponse=" + str(tResp.status_code))
+    if tResp.status_code == 200:
+        # valid - return the jsom
+        print(f"\tresource successfully updated, rc={tResp.status_code}")
+        # print(tResp)
+        return tResp.status_code
+    else:
+        # not valid
+        print("\tupdate resource failed... rc={tResp.status_code}")
+        # print(tResp)
+        return tResp.status_code
+
+
 def createResource(url, user, pWd, resourceName, resourceJson):
     """
     create a new resource based on the provided JSON
@@ -231,7 +261,9 @@ def createResourceUsingSession(url, session, resourceName, resourceJson):
     return newResourceResp.status_code
 
 
-def uploadResourceFileUsingSession(url, session, resourceName, fileName, fullPath, scannerId):
+def uploadResourceFileUsingSession(
+    url, session, resourceName, fileName, fullPath, scannerId
+):
     """
     upload a file for the resource - e.g. a custom lineage csv file
     works with either csv for zip files  (.csv|.zip)
@@ -239,15 +271,10 @@ def uploadResourceFileUsingSession(url, session, resourceName, fileName, fullPat
     returns rc=200 (valid) & other rc's from the post
 
     """
-    print(
-        "uploading file for resource "
-        + url
-        + " resource="
-        + resourceName
-    )
+    print("uploading file for resource " + url + " resource=" + resourceName)
     apiURL = url + "/access/1/catalog/resources/" + resourceName + "/files"
     print("\turl=" + apiURL)
-     # header = {"accept": "*/*", }
+    # header = {"accept": "*/*", }
     params = {"scannerid": scannerId, "filename": fileName, "optionid": "File"}
     print("\t" + str(params))
     #     files = {'file': fullPath}
@@ -279,7 +306,6 @@ def uploadResourceFileUsingSession(url, session, resourceName, fileName, fullPat
         print("\t" + str(uploadResp))
         print("\t" + str(uploadResp.text))
         return uploadResp.status_code
-
 
 
 def uploadResourceFile(url, user, pWd, resourceName, fileName, fullPath, scannerId):
@@ -403,7 +429,6 @@ def executeResourceLoad(url, user, pWd, resourceName):
         print("\t" + str(uploadResp.text))
         return uploadResp.status_code, None
 
-# start
 
 def createOrUpdateAndExecuteResourceUsingSession(
     url,
@@ -504,7 +529,9 @@ def createOrUpdateAndExecuteResourceUsingSession(
                             opt["optionValues"] = [fileName]
 
                 # print(templateJson)
-                createRc = createResourceUsingSession(url, session, resourceName, templateJson)
+                createRc = createResourceUsingSession(
+                    url, session, resourceName, templateJson
+                )
                 if createRc == 200:
                     validResource = True
                 else:
@@ -532,7 +559,9 @@ def createOrUpdateAndExecuteResourceUsingSession(
             # if the file was uploaded - start the resource load
             if uploadRc == 200:
                 print("starting resource load: " + resourceName)
-                loadRc, loadJson = executeResourceLoadUsingSession(url, session, resourceName)
+                loadRc, loadJson = executeResourceLoadUsingSession(
+                    url, session, resourceName
+                )
                 if loadRc == 200:
                     # print(loadJson)
                     print("\tJob Queued: " + loadJson.get("jobId"))
@@ -554,10 +583,7 @@ def createOrUpdateAndExecuteResourceUsingSession(
         )
 
 
-
-
 # end
-
 
 
 def createOrUpdateAndExecuteResource(
@@ -572,7 +598,8 @@ def createOrUpdateAndExecuteResource(
     scannerId,
 ):
     """
-    create or update resourceName   (note: old way - consider moving to sessions (better for id/pwd/ssl validation))
+    create or update resourceName
+    (note: old way - consider moving to sessions (better for id/pwd/ssl validation))
     upload a file
     execute the scan
     optionally wait for the scan to complete

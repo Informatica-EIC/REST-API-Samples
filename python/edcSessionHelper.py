@@ -47,6 +47,9 @@ class EDCSession:
         self.argparser = argparse.ArgumentParser(add_help=False)
         self.__setup_standard_cmdargs__()
         self.edcversion = 0
+        self.edcversion_str = ""
+        self.edc_build_vers = ""
+        self.edc_build_date = ""
 
     def __setup_standard_cmdargs__(self):
         # check for args overriding the env vars
@@ -168,7 +171,7 @@ class EDCSession:
         # if there is still no edc url - then prompt for it
         if self.baseUrl is None:
             # nothing entered anywyere for the base url
-            print(f"edc url not specified in ENV var or command-line parameter")
+            print("edc url not specified in ENV var or command-line parameter")
             self.baseUrl = input("Enter catalog URL: http(s)://server:port :")
 
         # user credential stored in auth
@@ -187,7 +190,7 @@ class EDCSession:
         # if there is still no auth - then prompt for id and pwd
         if auth is None:
             print(
-                f"no credentials in ENV var/.env file/command-line - "
+                "no credentials in ENV var/.env file/command-line - "
                 "prompting for id/pwd"
             )
             args.user = input("\tuser id: ")
@@ -248,6 +251,9 @@ class EDCSession:
             if resp.status_code == 200:
                 # valid and 10.4+, get the actual version
                 rel_version = resp.json().get("releaseVersion")
+                self.edcversion_str = rel_version
+                self.edc_build_vers = resp.json().get("buildVersion")
+                self.edc_build_date = resp.json().get("buildDate")
                 if rel_version.count(".") == 2:
                     # version is something like 10.4.0
                     # but we need to make it a 4 part name like 10.4.0.0

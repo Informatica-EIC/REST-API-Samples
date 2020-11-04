@@ -1,3 +1,12 @@
+"""
+    File name: EDCTools.py
+    Author: Cameron Wonchoba
+    Date created: 10/6/2020
+    Date last modified: 11/4/2020
+    Python Version: 3.6+
+"""
+
+
 from InformaticaAPI import InformaticaAPI
 
 import pandas as pd

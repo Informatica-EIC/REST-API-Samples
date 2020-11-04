@@ -2,25 +2,23 @@ from InformaticaAPI import InformaticaAPI
 
 import pandas as pd
 import os
-import multiprocessing
 
 class EDCTools(InformaticaAPI):
     """
     A class used to extract a variety of information from EDC
-
     ...
     
     Attributes
     ----------
-    SQLParserObj - SQLParser object
-        Object for using SQLParser attributes and methods
+    directory - String
+        Holds the name of a directory we may write to
             
     Methods
     -------
-    searchStoredProcedure(storedProcedureName)
-        Search for the ID of the Stored Procedure Name
-    extractProcedureCode(procedureID)
-        Extract the code for the Stored Procedure
+    searchObject(objectName, objectType, maxHits=250)
+        Search for the ID of the objectName
+    extractCode(objectID)
+        Extract the code for a particular object
     extractDataFlow(objectID, associationID, impact)
         Extract the lineage or impact for a particular data assest. Return a DataFrame object
     extractTransformationLogic(objectID, impact)
@@ -31,7 +29,7 @@ class EDCTools(InformaticaAPI):
         Extract the Impact for a particular objectID. Return a DataFrame object
     extractCompleteDataFlow(objectID, impact)
         Extract DataFlow and Transformations into one report. Return a Dataframe object
-    extractDetails(df_ETL_DataFlow)
+    extractDetails(df_DataFlow)
         Extract the underlying details for a particular dataflow
     extractFarLeftTables(df_dataflow, df_attributes)
         Extract the far left tables (first dependency) from a dataflow
@@ -39,12 +37,12 @@ class EDCTools(InformaticaAPI):
         Extract all table dependencies
     extractColumns(df_attributes)
         Extract column dependenncies
-    verifyColumnName(columnName, tableName, procedureID)
-        Verify that the name of the column is correct
-    getStoredProcedureLineage(procedureID)
-        Create a group of files that contains the lineage for each table/column in a Stored Procedure
-    extractDetail(prefix, ID, allAttributes, rowAttributes)
-        Extract attributes for a particular ID    
+    extractDetail(ID, prefix="")
+        Extract attributes for a particular ID
+    extractEverything(objectID, impact)
+        Extracts All dataflow, transformation logic, table dependencies, and column dependencies
+    extractTableColumns(objectID)
+        Extract columns from a table
     """
 
     def __init__(self, securityDomain=None, userName=None, password=None, catalogService=None, verbose=False):
@@ -108,7 +106,6 @@ class EDCTools(InformaticaAPI):
     def extractDataFlow(self, objectID, associationID, impact):
         """
         Extract the lineage or impact for a particular data assest. Return a DataFrame object
-
             Parameters
             ----------
             objectID : String 
@@ -263,7 +260,7 @@ class EDCTools(InformaticaAPI):
                 # Extract Table Level info
                 ID = ID.rsplit("/", 1)[0]
                 if ID not in allAttributes:
-                    details = self.extractDetail(ID, "level_1")
+                    details = self.extractDetail(ID, "level_1_")
                     rowAttributes.update(details)
                     allAttributes[ID] = details
                 else:
@@ -287,7 +284,7 @@ class EDCTools(InformaticaAPI):
                 rowAttributes['Link'] = formattedLink.format(rowAttributes['ID'], rowAttributes['PowerCenter_4_core.classType'])
 
             attributes += [rowAttributes]
-
+        
         return pd.DataFrame(attributes)
 
     def extractFarLeftTables(self, df_dataflow, df_attributes):
@@ -351,8 +348,9 @@ class EDCTools(InformaticaAPI):
         return df
 
     def extractEverything(self, objectID, impact):
-        """Extracts All dataflow, transformation logic, table dependencies, and column dependencies
-
+        """
+        Extracts All dataflow, transformation logic, table dependencies, and column dependencies
+        
         Parameters
         ----------
         objectID : String
@@ -369,10 +367,20 @@ class EDCTools(InformaticaAPI):
             df_tableDependencies = self.extractTables(df_attributes)
             df_columnDependencies = self.extractColumns(df_attributes)
 
-        # Create Directory if not exists...
-        self.directory = "ExtractedResults_" + objectID.replace("/","_")
+        # Name directory
+        self.directory = "ExtractedResults"
 
-        filename = "Results" + objectID.replace("/","_")
+        # Create directory if it doesn't exist
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
+        
+        # Clear the folder
+        filelist = os.listdir(self.directory)
+        for f in filelist:
+            os.remove(os.path.join(self.directory, f))
+            print(f"Removed {os.path.join(self.directory, f)}")
+
+        filename = "Results_" + objectID.replace("/","_").replace(":","__")
         print(f"Writing to {filename}")
         # Write data to Excel Spreadsheet
         with pd.ExcelWriter(self.directory+f"/{filename}.xlsx", options={'strings_to_urls':False}) as writer:
@@ -386,7 +394,8 @@ class EDCTools(InformaticaAPI):
         print(f"Written to {self.directory}/{filename}.xlsx")
 
     def extractTableColumns(self, objectID):
-        """Extract columns from a table
+        """
+        Extract columns from a table
         
         Parameters
         ----------
@@ -415,7 +424,6 @@ class EDCTools(InformaticaAPI):
                 return sorted(columns)
         print("[ERROR] - Passed in ID of Object that isn't a table: ", objectID)
         return []
-
 
 if __name__ == "__main__":
     EDCToolsObj = EDCTools(verbose=True)

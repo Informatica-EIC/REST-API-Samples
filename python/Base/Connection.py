@@ -66,6 +66,7 @@ class Connection:
         b64AuthStr = base64.b64encode(bytes(authorizationStr, "utf-8"))
 
         self.session = requests.Session()
+        self.session.verify = False
         self.updateAuthorization(b64AuthStr, authType="Basic")
         self.testConnection()
     

@@ -21,7 +21,7 @@ this happens when other databases are queried, usually in views, via dblinks (or
 a file named `out/externalDBLinks.csv` is created by this process, using the custom lineage format (including association name & id of the source/target objects) - no connection assignment necessary
 
 ## Usage
-syntax: `usage: externalDBLinker.py [-h] [-c EDCURL] [-v ENVFILE] [-a AUTH | -u USER] [-s SSLCERT] [-f CSVFILENAME] [-o OUTDIR] [-i] [-rn LINEAGERESOURCENAME] [-rt LINEAGERESOURCETEMPLATE]`
+syntax: `usage: externalDBLinker.py [-h] [-c EDCURL] [-v ENVFILE] [-a AUTH | -u USER] [-s SSLCERT] [-f CSVFILENAME] [-o OUTDIR] [-dl DBLINSFILE] [-i] [-rn LINEAGERESOURCENAME] [-rt LINEAGERESOURCETEMPLATE]`
 
 
 to start the utility
@@ -44,6 +44,23 @@ to create/update the resource directly in the catalog, upload the lineage file t
 when setting executeEDTImport=True - it will call `edcutils.createOrUpdateAndExecuteResource`
 
 ## Other Notes
-should work on all platforms (linux/mac/windows) using either python 2.7 or 3.x
-
+should work on all platforms (linux/mac/windows) using python 3.6+
 for best performance, run on the catalog service server
+
+## Oracle DBlinks
+
+for the case where an oracle dblinks is used - a parameter file has been created to map the dblink name to the actual schema and database (target of the link)
+this makes it possible to generate the correct external links.
+
+previously - if the schema name was not used when referring to a dblink - the id of the external schema object was formatted like this `informatica_[783]@oradockerdaa_[791]`  (linkingdb_[nnn]@dblinkname_[nnn])
+
+the format of the dblink lookup file has 3 columns:-
+- dblink name of the dblink (without the @)
+- database database that the dblink is referring to (if empyty, will look for any database)
+- schema used for the dblink (needed where no schema is referenced)
+
+example:-
+```
+dblink,database,schema
+oradockerdaa,ORCLPDB133,DAA
+```

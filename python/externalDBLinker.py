@@ -22,6 +22,7 @@ import edcSessionHelper
 import urllib3
 import os
 from pathlib import Path
+import re
 
 urllib3.disable_warnings()
 
@@ -37,9 +38,7 @@ parser.add_argument(
     "--csvFileName",
     default="dbms_externalDBLinks.csv",
     required=False,
-    help=(
-        "csv file to create/write (no folder) default=dbms_externalDBLinks.csv "
-    ),
+    help=("csv file to create/write (no folder) default=dbms_externalDBLinks.csv "),
 )
 parser.add_argument(
     "-o",
@@ -57,7 +56,7 @@ parser.add_argument(
     "--edcimport",
     default=False,
     # type=bool,
-    action='store_true',
+    action="store_true",
     help=(
         "use the rest api to create the custom lineage resource and start the import process "
     ),
@@ -81,9 +80,23 @@ parser.add_argument(
         "custom lineage resource template (json format) use for creating a new resource - default value=template/custom_lineage_template.json"
     ),
 )
+parser.add_argument(
+    "-dl",
+    "--dblinksfile",
+    default="dblinks.csv",
+    required=False,
+    help=(
+        "file with lookup information for dblinks, default name is dblinks.csv - columns should be dblink,database,schema"
+    ),
+)
 
 # waitToComplete setting is not active (and probably not useful anyway)
 waitToComplete = False
+
+
+class mem:
+    dblinks = dict()
+    tables_not_linked = 0
 
 
 def getColumnsForTable(tableId):
@@ -104,7 +117,8 @@ def getColumnsForTable(tableId):
         "pageSize": 1,
     }  # pagesize can be 1 - since we are only passing the id
     colResp = edcHelper.session.get(
-        edcHelper.baseUrl + "/access/2/catalog/data/objects", params=parameters,
+        edcHelper.baseUrl + "/access/2/catalog/data/objects",
+        params=parameters,
     )
     tableJson = colResp.json()
     # print(colResp.status_code)
@@ -148,17 +162,32 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
     tabLinks = 0
     colLinks = 0
     errors = 0
+    tables_with_no_links = 0
+
+    db_mapping = dict()
 
     # 'External' can be used if the database name is not known (sqlserver use case)
     if dbName == "External":
         dbUnknown = True
         print("\tthe database for the externally referenced object is unknown")
 
+    # lookup to see of the database name is in the mapping lookup table
+    dblookupName = dbName
+    if dbName.startswith("@"):
+        dblookupName = dbName[1:]
+
+    if dblookupName in mem.dblinks:
+        db_mapping = mem.dblinks[dblookupName]
+        print(f"\tactual name for db found in dblinks using lookup: {db_mapping}")
+        dbUnknown = False
+    else:
+        dbUnknown = True
     # note:  if the database type is oracle, we can't trust the name of the database
     #        since it will contain the dblink name, not the externally referenced db
     #        so we will treat it as unknown and just try to find the schema/table ref'd
-    if resType == "Oracle":
-        dbUnknown = True
+    # note - better handled by lookup references... (above)
+    # if resType == "Oracle":
+    #     dbUnknown = True
 
     print(f"\ttype={classType} name={dbName} id={dbId} unknownDB:{dbUnknown}")
 
@@ -175,7 +204,8 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
     }
     print(f"\tLineage query for: {dbName} params={lineageParms}")
     lineageResp = edcHelper.session.get(
-        lineageURL, params=lineageParms,
+        lineageURL,
+        params=lineageParms,
     )
 
     lineageStatus = lineageResp.status_code
@@ -197,11 +227,23 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
     for lineageItem in lineageJson["items"]:
         inId = lineageItem.get("inId")
         assocId = lineageItem.get("associationId")
+        inEmbedded = lineageItem.get("inEmbedded")
+
         schemaName = ""
-        # print("\t" + inId + " assoc=" + assocId)
+        schema_substituted = False
         if assocId == "com.infa.ldm.relational.ExternalSchemaTable":
             # find the table...
             schemaName = inId.split("/")[-2]
+            regex_pattern = re.compile(".*\[\d+\].+\[\d+\]")
+            if regex_pattern.match(schemaName):
+                print(f"\tfound un-known schema name reference id= {schemaName}")
+                if "schema" in db_mapping:
+                    print(
+                        f"\treplaceing schema={schemaName} with {db_mapping['schema']}"
+                    )
+                    schemaName = db_mapping["schema"]
+                    schema_substituted = True
+
             inEmbedded = lineageItem.get("inEmbedded")
             tableName = edcutils.getFactValue(inEmbedded, "core.name")
             print(
@@ -212,9 +254,9 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
             # format the query to find the actual table
             # "core.classType:(com.infa.ldm.relational.Table or com.infa.ldm.relational.View)  and core.name_lc_exact:"
             q = (
-                "core.classType:(com.infa.ldm.relational.Table or com.infa.ldm.relational.View)  and core.name:\""
+                'core.classType:(com.infa.ldm.relational.Table or com.infa.ldm.relational.View)  and core.name:"'
                 + tableName.lower()
-                + "\""
+                + '"'
             )
             if dbUnknown and schemaName == "":
                 q = q + " and core.resourceName:" + resName
@@ -253,24 +295,50 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
                         schemaName.lower() == fromSchemaName.lower()
                         or (schemaName == "" and fromSchemaName == "dbo")
                     ):
-                        tableMatchCount += 1
-                        foundTabId = fromTableId
-                        print(
-                            f"\t\ttable name matches...{theName}=={tableName} {inId} {foundTabId} "
-                            f" count/{fromTableId.count('/')}"
-                        )
+                        # table and schema names match
+                        # check if there is a dblink lookup that has a database & if that matches too
+                        if schema_substituted:
+                            fromdbName = fromTableId.split("/")[-3].lower()
+                            linkedDbName = db_mapping["database"]
+                            print(
+                                f"\t\t\tchecking for matching database for dblink does {fromdbName} = {linkedDbName}?: {fromdbName.lower() == linkedDbName.lower()}"
+                            )
+                            if fromdbName.lower() == linkedDbName.lower():
+                                # make the link
+                                print("\t\t\tok to make the link....")
+                                tableMatchCount += 1
+                                foundTabId = fromTableId
+                                print(
+                                    f"\t\ttable name matches...{theName}=={tableName} {inId} {foundTabId} "
+                                    f" count/{fromTableId.count('/')}"
+                                )
+                            else:
+                                print(
+                                    "\t\t\tdatabase name does not match - not linkable"
+                                )
+                        else:
+                            tableMatchCount += 1
+                            foundTabId = fromTableId
+                            print(
+                                f"\t\ttable name matches...{theName}=={tableName} {inId} {foundTabId} "
+                                f" count/{fromTableId.count('/')}"
+                            )
                     else:
                         print(
-                            "\t\tno match...schema match 1:"
+                            "\t\t\tno match... linked table name:"
                             + theName
-                            + " 2:"
+                            + " ref table:"
                             + tableName
-                            + " 3:"
+                            + " ref shema:"
                             + schemaName
-                            + " 4:"
+                            + " from schema:"
                             + fromSchemaName
-                            + ":"
+                            + " schema names match? : "
                             + str(schemaName.lower() == fromSchemaName.lower())
+                            + " schema_substituted: "
+                            + str(schema_substituted)
+                            + " db_mapping: "
+                            + str(db_mapping)
                         )
                 # else:
                 # print("skipping this one");
@@ -316,19 +384,43 @@ def processExternalDB(dbId, classType, dbName, resType, resName, colWriter):
                 )
                 # print("\t\t\tcolumns linked=" + str(tabColsLinked))
             else:
-                print(
-                    f"\t\tmutlple possible matches found ({tableMatchCount}"
-                    f") no links will be created"
-                )
+                tables_with_no_links += 1
+                print(f"\t\t{tableMatchCount} links found) no links will be created")
             # flush the console buffer - for tailing the stdout log
             sys.stdout.flush()
 
     print(
         f"external database: {dbName} processed: tab/col links created: "
-        f"{tabLinks}/{colLinks} errors:{errors}"
+        f"{tabLinks}/{colLinks} errors:{errors} tables not linked={tables_with_no_links}"
     )
+    mem.tables_not_linked += tables_with_no_links
     print("")
     return tabLinks, colLinks, errors
+
+
+def read_dblinks_lookups(filename: str):
+    # see of the file exists
+    print(f"\ndblinks: initializing lookup file {filename} for dblink processing...")
+    if os.path.exists(filename):
+        # print("\tok reading file...")
+        with open(filename, "r") as theFile:
+            reader = csv.DictReader(theFile)
+            for line in reader:
+                # print(line)
+                if "dblink" in line:
+                    mem.dblinks[line["dblink"]] = line
+                else:
+                    print(
+                        f"\tcolumn named 'dblink' not found in {filename} please use file with format dblink,database,schema"
+                    )
+                    break
+    else:
+        print(
+            f"\tdblinks lookup file {filename} does not exist, no mapping for dblink references will be processed properly"
+        )
+
+    print(f"end of dblinks lookup init - {len(mem.dblinks)} read")
+    print(f"dblinks lookup data: \n\t{mem.dblinks}")
 
 
 def main():
@@ -347,6 +439,9 @@ def main():
     edcHelper.initUrlAndSessionFromEDCSettings()
     print(f"command-line args parsed = {args} ")
 
+    # check any dblinks lookup file
+    read_dblinks_lookups(args.dblinksfile)
+
     tableLinksCreated = 0
     columnLinksCreated = 0
     errorsFound = 0
@@ -363,7 +458,7 @@ def main():
     fCSVFile = open(outputFile, "w", newline="", encoding="utf-8")
     from pathlib import Path
 
-    print("custom lineage file initialized. " + outputFile + " RELATIVE=" +fullpath)
+    print("custom lineage file initialized. " + outputFile + " RELATIVE=" + fullpath)
     colWriter = csv.writer(fCSVFile)
     colWriter.writerow(columnHeader)
 
@@ -414,6 +509,7 @@ def main():
     print("finished!")
     print("table links:   created=" + str(tableLinksCreated))
     print("column links:  created=" + str(columnLinksCreated))
+    print(f"tables with no links found={mem.tables_not_linked}")
     print("errors found: " + str(errorsFound))
 
     # end of main()
@@ -429,7 +525,7 @@ def main():
             args.csvFileName,
             fullpath,
             waitToComplete,
-            "LineageScanner"
+            "LineageScanner",
         )
 
 

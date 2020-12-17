@@ -1,0 +1,4 @@
+object_type,object_name,pam_alias
+edc_resource,oracle_acme_crm,alias2
+infa_connection,sqlserver_db_one,sqlserver_dev
+edc_resource,sqlserver_db_one,sqlserver_devxx

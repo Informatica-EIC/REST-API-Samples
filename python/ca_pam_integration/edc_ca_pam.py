@@ -154,12 +154,11 @@ def update_isp_connection(connection_name: str, pwd_to_encrypt: str) -> str:
         cmd_to_execute = f'{pm_pwd_bin} isp updateConnection -dn infa_presales_cloud -cn {connection_name} -cpd "{pwd_to_encrypt}" -Options ""'
     else:
         pm_pwd_bin = os.path.join(INFA_HOME, "server/bin/infacmd.sh")
-        cmd_to_execute = f"{pm_pwd_bin} isp updateConnection -dn infa_presales_cloud -un admin -pd admin -cn {connection_name} -cpd '{pwd_to_encrypt}' -Options \"\""
+        cmd_to_execute = f"{pm_pwd_bin} isp updateConnection -dn infa_presales_cloud -cn {connection_name} -cpd '{pwd_to_encrypt}' -Options \"\""
 
     # print(cmd_to_execute)
     start = timer()
     print(f"\texecuting infacmd isp updateConnection -cn {connection_name}")
-    # cmd_to_execute = f"{pm_pwd_bin} isp updateConnection -dn infa_presales_cloud -un admin -pd admin -cn {connection_name}  -cpd {pwd_to_encrypt} -Options \"\""
     process = subprocess.Popen(
         cmd_to_execute,
         shell=True,

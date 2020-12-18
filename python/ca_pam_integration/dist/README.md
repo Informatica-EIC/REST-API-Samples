@@ -14,7 +14,7 @@ create a script that can update EDC resources and platform connctions (for profi
     - INFA_EDC_AUTH  base64 encoded credentials for an EDC user with api and resource update privileges (use encodeUser.py to create)
   - for infa platform connections infacmd
      - INFA_DEFAULT_DOMAIN_USER  user id to connect and update connections
-     - INFA_DEFAULT_DOMAIN_PASSWORD encrypted password for infa user - use pmpasswd to create  `$INFA_HOME//server/bin/pmpasswd <password>`
+     - INFA_DEFAULT_DOMAIN_PASSWORD encrypted password for infa user - use pmpasswd to create  `$INFA_HOME/server/bin/pmpasswd <password>`
 
 # control file
 

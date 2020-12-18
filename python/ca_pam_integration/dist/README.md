@@ -28,9 +28,17 @@ the control file as 3 columns:-
 the `edc_ca_pam` binary file is called with no parameters it will use the environment variables and control_file.csv
 
 # sample output
-
+- control file has 3 entries
 ```
-edc_ca_pam
+object_type,object_name,pam_alias
+edc_resource,oracle_acme_crm,alias2
+infa_connection,sqlserver_db_one,sqlserver_dev
+edc_resource,sqlserver_db_one,sqlserver_devxx
+```
+
+- output - 1 edc resource is updated, 1 platform connection is updated, and one fails because the alias name is invalid
+```
+napslapp01.infaaws.com:/home/infa/ca_pam#edc_ca_pam
 checking CA PAM executable for platform=Linux
         using CSPM_CLIENT_HOME=/home/infa/ca_pam/cspm from environment var
         using CSPM_CLIENT_BINARY=cspmclient.sh from environment var
@@ -62,10 +70,10 @@ processing resource edc_resource oracle_acme_crm using alias alias2
         updating resource oracle_acme_crm
         updating resource for catalog:-https://napslxapp01:9554 resource=oracle_acme_crm
         resource successfully updated, rc=200
-        resource updated in in 1.00181961799899 seconds
+        resource updated in in 3.4984077389999584 seconds
 
         starting resource test connect
-        response=200 in 6.23412064799777 seconds
+        response=200 in 9.539132929000061 seconds
         test connect succeeded:200 true
 
 processing row: 2 from control file ----------------------------------------
@@ -78,9 +86,9 @@ processing resource infa_connection sqlserver_db_one using alias sqlserver_dev
                 updating connection sqlserver_db_one
                 using INFA_HOME=/opt/infa/10.4 from environment var
         executing infacmd isp updateConnection -cn sqlserver_db_one
-                return lines from pmpasswd 1 in 2.8030991410014394 seconds
-                returned =['[ICMD_10033] Command [updateConnection] failed with error [[INFACMD_40000] [DTF_0020] The [UserManagementService] Service failed to authenticate the user with the error message [[UM_10205] Failed to authenticate the user [admin] that belongs to the security domain [Native]. For more information, see the domain logs.].].']
-                        conmnection update failed :(
+                return lines from pmpasswd 1 in 3.4943483319999586 seconds
+                returned =['Command ran successfully.']
+                        Connection updated!
 
 processing row: 3 from control file ----------------------------------------
 
@@ -90,13 +98,12 @@ processing resource edc_resource sqlserver_db_one using alias sqlserver_devxx
                 password for alias sqlserver_devxx has 5 characters
         cannot update resource sqlserver_db_one - return from CA PEM rc=100 alias=sqlserver_devxx
 
-Process finished: 1/3 updated
+Process finished: 2/3 updated
                    aliases read: 3 ['alias2', 'sqlserver_dev', 'sqlserver_devxx']
               updated resources: 1 ['oracle_acme_crm']
-            updated connections: 0 []
+            updated connections: 1 ['sqlserver_db_one']
               failed  resources: 0 []
         failed edc test connect: 0 []
                failed aliases  : 1 ['sqlserver_devxx']
-
 ```
 

@@ -1,0 +1,12 @@
+401 - Failed to authenticate with the Password Authority service
+402 - Unable to establish connection with client daemon
+403 - Not authorized (for client daemon)
+404 - Unable to establish connection with Password Authority Server
+405 - No data found for specified target alias
+406 - Application error. See system log for details
+407 - Invalid parameters specified
+408 - Fail to get config file
+409 - Unauthorized script name
+410 - Unauthorized execution path
+411 - Unauthorized execution user ID
+412 - Unauthorized request server

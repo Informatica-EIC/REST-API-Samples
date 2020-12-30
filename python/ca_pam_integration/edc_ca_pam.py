@@ -55,6 +55,11 @@ def main():
             current_row += 1
             # print(line)
             object_type = line["object_type"]
+            if object_type.startswith("#"):
+                print(
+                    f"\tskipping commented entry on line {current_row}: {object_type}"
+                )
+                continue
             object_name = line["object_name"]
             alias_name = line["pam_alias"]
             resources_processed += 1
@@ -86,6 +91,7 @@ def process_entry(object_type, object_name: str, alias_name: str):
     """
     cacheflag = ""
     optflag = ""
+    full_resp = ""
 
     print(
         f"\nprocessing resource {object_type} {object_name}"
@@ -98,19 +104,21 @@ def process_entry(object_type, object_name: str, alias_name: str):
         id = mem.alias_cache[alias_name]["id"]
         pwd = mem.alias_cache[alias_name]["pwd"]
     else:
-        rc, id, pwd = getCredential(alias_name, cacheflag, optflag)
-        mem.alias_cache[alias_name] = {"rc": rc, "id": id, "pwd": pwd}
-        print(f"\t\tpassword for alias {alias_name} has {len(pwd)} characters")
+        rc, id, pwd, full_resp = getCredential(alias_name, cacheflag, optflag)
 
     if rc != "400":
         # mem.failed_list.append(object_name)
+        mem.alias_cache[alias_name] = {"rc": rc, "id": id, "pwd": pwd}
         if alias_name not in mem.failed_aliases:
             mem.failed_aliases.append(alias_name)
         print(
             f"\tcannot update resource {object_name} "
-            f"- return from CA PEM rc={rc} alias={alias_name}"
+            f"- return from CA PAM rc={rc} alias={alias_name} response={full_resp}"
         )
         return
+
+    print(f"\t\tpassword for alias {alias_name} has {len(pwd)} characters")
+    mem.alias_cache[alias_name] = {"rc": rc, "id": id, "pwd": pwd}
 
     # we have a valid alias + password here
     if object_type == "edc_resource":
@@ -125,7 +133,7 @@ def process_entry(object_type, object_name: str, alias_name: str):
             print("\t\t\tConnection updated!")
             mem.connections_updated.append(object_name)
         else:
-            print("\t\t\tconmnection update failed :(")
+            print("\t\t\tconnnection update failed")
     else:
         print(f"unknown object type {object_type} can't do anything")
 
@@ -176,7 +184,9 @@ def update_isp_connection(connection_name: str, pwd_to_encrypt: str) -> str:
         rc = process.returncode
 
     end = timer()
-    print(f"\t\treturn lines from pmpasswd {len(outlines)} in {end - start} seconds")
+    print(
+        f"\t\treturned {len(outlines)} lines from infacmd isp updateConnection in {end - start} seconds"
+    )
     print(f"\t\treturned ={outlines}")
     if outlines[0] == "Command ran successfully.":
         return True
@@ -265,9 +275,9 @@ def getCredential(alias, cacheflag, optflag):
     if rc_parts[0] == "400":
         print(f"\tvalid return code ({rc_parts[0]}) " f"- password can be updated")
     else:
-        print(f"\tinvalid return code {rc_parts[0]} exiting")
+        print(f"\tinvalid return code {rc_parts[0]} response='{retVal}'")
 
-    return rc_parts[0], rc_parts[1], rc_parts[2]
+    return rc_parts[0], rc_parts[1], rc_parts[2], retVal
 
 
 def check_ca_pam_binaries() -> bool:
@@ -319,10 +329,10 @@ def update_edc_resource_pwd(resource_name: str, password: str):
     """
     read the resource, if it exists, update the password
     """
-
     print(
         f"\n\tstarting process to update edc resource: {resource_name} with new password"  # ,  {password}"
     )
+    scanner_id = ""
 
     # get the resource from EDC
     # resourceUrl = f"{edcSession.baseUrl}/access/1/catalog/resources/"

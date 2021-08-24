@@ -8,3 +8,4 @@ python/.env*
 java/lib/client.jar
 *.code-workspace
 .vscode/*
+**/.DS_Store

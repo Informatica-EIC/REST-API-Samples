@@ -11,8 +11,12 @@ process:-
     in EDC - we have no way to automatically know that there is lineage
     between the schema contents (tables & columns)
     this utility will generate the custom lineage import to create the links
+    it will create
+    - core.DataSourceDataFlow links from schema to schema (or equivalent)
+    - core.DataSetDataFlow links from table to table (or equivalent)
+    - core.DirectionalDataFlow links from column to column (or equivalent)
 
-    given two schemas - leftSchema and rightSchema
+    given two schemas (datasource instances) - leftSchema and rightSchema
     find the 2 schemas objects in the catalog (GET /2/catalog/data/objects)
 
     for each schema
@@ -83,6 +87,9 @@ parser.add_argument(
     "-rtp", "--righttableprefix", required=False, default="", help="table prefix for right datasets"
 )
 parser.add_argument(
+    "-sub", "--substitute", required=False, help="characters to replace, from/to split by '/' and comma seperated for multiple substitutions - e.g. _a/_b,#/_h  replace any _a string to _b, and any # to _h in the columns to link"
+)
+parser.add_argument(
     "-o",
     "--outDir",
     default="out",
@@ -94,7 +101,7 @@ parser.add_argument(
 )
 
 
-def getSchemaContents(schemaName, schemaType, resourceName):
+def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
     """
     given a schema name, schema class type (e.g. hanadb is different)
     and resource name, find the schema object
@@ -146,9 +153,16 @@ def getSchemaContents(schemaName, schemaType, resourceName):
 
     for item in response.json()["items"]:
         schemaId = item["id"]
-        schemaName = edcutils.getFactValue(item, "core.name")
+        schemaNameFound = edcutils.getFactValue(item, "core.name")
         # get the tables & columns
-        print("\tfound schema: " + schemaName + " id=" + schemaId)
+
+        # check to see if schemaName found is an exact match
+        # (for situations where there are other schemas with the same prefix)
+        # e.g. search for "PUBLIC" will also return "PUBLIC_TEST"
+        print("\tfound schema: " + schemaNameFound + " id=" + schemaId)
+        if schemaNameFound != schemaName:
+            print(f"schema {schemaNameFound} does not exactly match {schemaName}, skipping")
+            continue
 
         lineageURL = edcHelper.baseUrl + "/access/2/catalog/data/relationships"
         lineageParms = {
@@ -191,6 +205,8 @@ def getSchemaContents(schemaName, schemaType, resourceName):
         relsJson = json.loads(lineageJson)
         # print(len(relsJson))
 
+
+
         for lineageItem in relsJson["items"]:
             # print('\t\t' + str(lineageItem))
             inId = lineageItem.get("inId")
@@ -201,30 +217,38 @@ def getSchemaContents(schemaName, schemaType, resourceName):
             assocId = lineageItem.get("associationId")
             # print("\t\t" + inId + " assoc=" + assocId)
             # if assocId=='com.infa.ldm.relational.SchemaTable':
-            if assocId.endswith(".SchemaTable"):
+            if assocId.endswith(".SchemaTable") or assocId == "com.infa.adapter.snowflake.PackageFlatRecord_table":
                 # note - custom lineage does not need table and column
                 # count the tables & store table names
                 tableCount += 1
                 # tableName = inId.split('/')[-1]
-                tableName = edcutils.getFactValue(
-                    lineageItem["inEmbedded"], "core.name"
-                ).lower()
+                # tableName = edcutils.getFactValue(
+                #     lineageItem["inEmbedded"], "core.name"
+                # ).lower()
                 # store the table name (for lookup when processing the columns)
                 # key=id, val=name
-                tableNames[inId] = tableName
-                schemaDict[tableName] = inId
+                # tableNames[inId] = tableName
+                # schemaDict[tableName] = inId
             # if assocId=='com.infa.ldm.relational.TableColumn':
-            if assocId.endswith(".TableColumn") or assocId.endswith(
-                ".TablePrimaryKeyColumn"
-            ):
+            if (assocId.endswith(".TableColumn")
+               or assocId.endswith(".TablePrimaryKeyColumn")
+               or assocId == "com.infa.adapter.snowflake.FlatRecord_tableField"):
                 # columnName = inId.split('/')[-1]
                 columnCount += 1
                 columnName = edcutils.getFactValue(
                     lineageItem["inEmbedded"], "core.name"
                 ).lower()
-                tableName = tableNames[outId].lower()
+                # check if key exists??  possible bug or different order from relationships
+
+                # check for substitutions
+                columnName = (substitute_name(columnName, substitute_chars)).lower()
+                # get table name from id (split and get the parent - won't work if a table / in the name)
+                tableName = outId.split("/")[-1].lower()
+                # print(outId.split("/"))
+                # tableName = tableNames[outId].lower()
                 # print("column=" + tableName + "." + columnName)
                 schemaDict[tableName + "." + columnName] = inId
+                schemaDict[tableName] = outId
 
     print(
         "\tgetSchema: returning "
@@ -234,6 +258,25 @@ def getSchemaContents(schemaName, schemaType, resourceName):
         + " tables"
     )
     return schemaDict, schemaId
+
+
+def substitute_name(from_name:str, subst:str) -> str:
+    # split the substituions by ,
+    substutions = subst.split(",")
+    new_str = from_name
+    if subst is None:
+        return from_name
+    if "/" not in subst:
+        return from_name
+
+    for subst_instance in substutions:
+        # split the subst string into from/to
+        from_str = subst_instance.strip().split("/")[0]
+        if from_str in from_name:
+            to_str = subst_instance.strip().split("/")[1]
+            new_str = from_name.replace(from_str, to_str)
+            print(f"substituting {from_str} with {to_str} in {from_name} - new value is {new_str}")
+    return new_str
 
 
 def main():
@@ -270,6 +313,8 @@ def main():
     print(f"output folder:{args.outDir}")
     print(f"output file prefix:{args.csvprefix}")
     print(f"right table prefix:{args.righttableprefix}")
+    if args.substitute is not None:
+        print(f"substition from,to: {args.substitute}")
 
     # initialize csv output file
     columnHeader = [
@@ -298,7 +343,7 @@ def main():
         f" type={args.lefttype}"
     )
     leftObjects, leftSchemaId = getSchemaContents(
-        args.leftschema, args.lefttype, args.leftresource
+        args.leftschema, args.lefttype, args.leftresource, args.substitute
     )
 
     # get the objects from the right schema into memory
@@ -308,7 +353,7 @@ def main():
         f" type={args.righttype}"
     )
     rightObjects, rightSchemaId = getSchemaContents(
-        args.rightschema, args.righttype, args.rightresource
+        args.rightschema, args.righttype, args.rightresource, args.substitute
     )
 
     matches = 0

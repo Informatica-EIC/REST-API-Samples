@@ -256,7 +256,11 @@ class EDCSession:
                 self.edc_build_date = resp.json().get("buildDate")
                 if rel_version.count(".") == 2:
                     # version is something like 10.4.0
-                    # but we need to make it a 4 part name like 10.4.0.0
+                    # but we need to make it a 5 part name like 10.4.1.3.1
+                    rel_version = rel_version + ".0.0"
+                elif rel_version.count(".") == 1:
+                    rel_version = rel_version + ".0.0.0"
+                elif rel_version.count(".") == 3:
                     rel_version = rel_version + ".0"
                 # remove the "." from the version
                 rel_nbr = int(rel_version.replace(".", ""))

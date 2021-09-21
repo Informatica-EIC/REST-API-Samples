@@ -159,21 +159,31 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
         # check to see if schemaName found is an exact match
         # (for situations where there are other schemas with the same prefix)
         # e.g. search for "PUBLIC" will also return "PUBLIC_TEST"
-        print("\tfound schema: " + schemaNameFound + " id=" + schemaId + "type=" + schemaType)
+        print("\tfound schema: " + schemaNameFound + " id=" + schemaId + " type=" + schemaType)
         if schemaNameFound != schemaName:
             print(f"schema {schemaNameFound} does not exactly match {schemaName}, skipping")
             continue
 
         lineageURL = edcHelper.baseUrl + "/access/2/catalog/data/relationships"
+        depth = 2
+        # for SAP Hana Calculation views - the package might contain sub-packages
+        # set the depth to >2
+        if schemaType == "com.infa.ldm.relational.SAPHanaPackage":
+            depth = 10
+            print(f"\tNote:  SAP Hana Package used for datasource (schema)\n\t\tsetting depth={depth} for relationships query")
         lineageParms = {
             "seed": schemaId,
             "association": "core.ParentChild",
-            "depth": "2",
+            "depth": depth,
             "direction": "OUT",
             "includeAttribute": {"core.name", "core.classType"},
             "includeTerms": "false",
             "removeDuplicateAggregateLinks": "false",
         }
+
+
+
+
         print(
             "\tGET child rels for schema: " + lineageURL + " parms=" + str(lineageParms)
         )
@@ -247,6 +257,7 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
                 columnName = (substitute_name(columnName, substitute_chars)).lower()
                 # get table name from id (split and get the parent - won't work if a table / in the name)
                 tableName = outId.split("/")[-1].lower()
+                # print(f"table::: {outId}")
                 # print(outId.split("/"))
                 # tableName = tableNames[outId].lower()
                 # print("column=" + tableName + "." + columnName)

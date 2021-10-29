@@ -1,0 +1,71 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.infa.eic.sample</groupId>
+    <artifactId>edc_utils</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <dependencies>
+        <!-- you will need to add client.jar to your local maven repository
+        e.g. after downloading client.jar
+        mvn install:install-file -Dfile=client.jar -DgroupId=com.infa.products.ldm.core.rest.v2.client -DartifactId=EDC-Rest-Client -Dversion=10.5.0.1 -Dpackaging=jar
+        -->
+        <!-- <dependency>
+            <groupId>com.infa.products.ldm.core.rest.v2.client</groupId>
+            <artifactId>EDC-Rest-Client</artifactId>
+            <version>10.5.0.1</version>
+        </dependency> -->
+        <dependency>
+            <groupId>com.infa.products.ldm.core.rest.v2.client</groupId>
+            <artifactId>EDC-Rest-Client</artifactId>
+            <version>10.4.1.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.9</version>
+        </dependency>
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>5.5.2</version>
+        </dependency>
+        <!-- for FuzzyBGAssociater-->
+        <dependency>
+            <groupId>me.xdrop</groupId>
+            <artifactId>fuzzywuzzy</artifactId>
+            <version>1.3.1</version>
+        </dependency>
+        <!-- for structure diff -->
+        <dependency>
+            <groupId>com.googlecode.java-diff-utils</groupId>
+            <artifactId>diffutils</artifactId>
+            <version>1.2.1</version>
+            <!-- 1.3.0 -->
+        </dependency>
+        <!-- for resource watch -->
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+        <!-- for v1 api calls (not covered in client.jar) -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.13</version>
+        </dependency>
+
+    </dependencies>
+
+    <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <sourceDirectory>src</sourceDirectory>
+    </build>
+
+</project>

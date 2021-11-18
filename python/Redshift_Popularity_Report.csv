@@ -1,0 +1,9 @@
+Database,Schema,Table,Usage Popularity
+test,cloudetldemo,product,69
+test,cloudetldemo,sfdcaccounts,109
+test,cloudetldemo,household_power,101
+test,cloudetldemo,ca_customers,101
+test,cloudetldemo,customer,15
+test,acme,crm_customer_dstyle_dkey_skey_grakers,25
+test,acme,crm_customer_dstyle_dkey_skey,14
+test,acme,crm_customer_dstyle_dkey_skey_enrico,150

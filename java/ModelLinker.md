@@ -9,6 +9,8 @@ Create links from data model objects E.g. entities/attributes to the correspondi
 Works only for models that have physical names defined.  E.g. from Ewrin - the models should be logical/physical or physical only
 if the physical name cannot be found, the catalog object name is used
 
+Note:  this utility is not optimized for performance (e.g. does not use async http calls or multiple threads)
+
 ## Implementation
 
 a .properties file is used to configure the ModelLinker process.  the default name is `catalog_utils.properties` - but can be any name
@@ -31,11 +33,17 @@ settings
 - `modelLinker.tableQuery` - query to find table objects in the relational model - should not need to be changed
 - `modelLinker.tableToColLink` - query to find the columns belongin to a table in the relational model - should not need to be changed
 - `modelLinker.logfile` - log file to write results to (console and log get same content) - default modelLinker.log
+- `modelLinker.useOwnerSchema` - boolean, use the schema name from the model for lookup (will search by core.autoSuggestMatchId - uppercase) - default is false
+- `modelLinker.ownerSchemaAttr` - attribute that contains the db schema e.g. for Erwin `com.infa.ldm.erwin.OwnerSchema`
 - `modelLinker.lineageFile` - custom lineage file generated, default=model_lineage.csv
 - `modelLinker.testOnly` - if true, will not make any updates via REST api - custom lineage and log will still be created
    - note:  if only using custom lineage, you should not need to set this to true, unless you want to write directly via API call
 - `modelLinker.deleteLinks` - delete links, if they were created by setting testOnly to false (cleanup links) for testing the process
    - note: - if only using custom lineage- you should never need to deleteLinks
+- `modelLinker.attributePropagation` - boolean flag to enable attribute propagation (copies attributes from model to dbms object)  value=true|false
+- `modelLinker.attributesToPropagate` - list of attributes to propagate.  comma separated for each column paring and : seperated for the from/to attribute.
+    - e.g. `modelLinker.attributesToPropagate=core.name:com.infa.ldm.ootb.enrichments.displayName,`
+
 
 ## downloading executable version of this utility
 

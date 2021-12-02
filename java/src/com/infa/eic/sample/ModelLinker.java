@@ -70,6 +70,12 @@ public class ModelLinker {
 	private String attributesToPropagate = "";
 	Map<String, String> attrPropMap = new HashMap<String, String>();
 
+	private String entityLinkType = "";
+	private String attributeLinkType = "";
+
+	private boolean useOwnerSchema = false;
+	private String ownerSchemaAttr = "";
+
 	/**
 	 * no-arg constructor
 	 */
@@ -135,7 +141,14 @@ public class ModelLinker {
 			tableToColLink = prop.getProperty("modelLinker.tableToColLink");
 			deleteLinks = Boolean.parseBoolean(prop.getProperty("modelLinker.deleteLinks"));
 			logFile = prop.getProperty("modelLinker.logfile", "modellog.log");
-			lineageFile = prop.getProperty("modelLinker.lineageFile", "model_lineagee.csv");
+			lineageFile = prop.getProperty("modelLinker.lineageFile", "model_lineage.csv");
+
+			useOwnerSchema = Boolean.parseBoolean(prop.getProperty("modelLinker.useOwnerSchema", "false"));
+			ownerSchemaAttr = prop.getProperty("modelLinker.ownerSchemaAttr", "");
+
+
+			entityLinkType = prop.getProperty("modelLinker.entityLinkType", "core.DataSetDataFlow");
+			attributeLinkType = prop.getProperty("modelLinker.attributeLinkType", "core.DirectionalDataFlow");
 
 			// termType = prop.getProperty("fuzzyLink.termType");
 
@@ -175,37 +188,47 @@ public class ModelLinker {
 			e.printStackTrace();
 		}
 
-		System.out.println("    EDC rest url: " + url);
-		System.out.println("     entityQuery: " + entityQuery);
-		System.out.println("      tableQuery: " + tableQuery);
-		System.out.println("    physNameAttr: " + physNameAttr);
-		System.out.println("   physNameAttrs: " + physNameAttrs);
-		System.out.println("  entityAttrLink: " + entityAttrLink);
-		System.out.println(" entityAttrLinks: " + entityAttrLinks);
-		System.out.println("  tableToColLink: " + tableToColLink);
-		System.out.println("    delete links: " + deleteLinks);
-		System.out.println("        log file: " + logFile);
-		System.out.println("       test mode: " + testOnly);
-		System.out.println("attr Propagation: " + doAttributePropagation);
-		System.out.println("   attrs to copy: " + attrPropMap);
+		System.out.println("     EDC rest url: " + url);
+		System.out.println("      entityQuery: " + entityQuery);
+		System.out.println("       tableQuery: " + tableQuery);
+		System.out.println("     physNameAttr: " + physNameAttr);
+		System.out.println("    physNameAttrs: " + physNameAttrs);
+		System.out.println("   entityAttrLink: " + entityAttrLink);
+		System.out.println(" use owner Schema: " + useOwnerSchema);
+		System.out.println("     owner Schema: " + ownerSchemaAttr);
+		System.out.println("  entityAttrLinks: " + entityAttrLinks);
+		System.out.println("   tableToColLink: " + tableToColLink);
+		System.out.println("   entityLinkType: " + entityLinkType);
+		System.out.println("attributeLinkType: " + attributeLinkType);
+		System.out.println("     delete links: " + deleteLinks);
+		System.out.println("         log file: " + logFile);
+		System.out.println("        test mode: " + testOnly);
+		System.out.println(" attr Propagation: " + doAttributePropagation);
+		System.out.println("    attrs to copy: " + attrPropMap);
 
 		try {
 
 			System.out.println("\tinitializing logFile:" + logFile);
 
 			logWriter = new PrintWriter(logFile, "UTF-8");
-			logWriter.println("   EDC rest url: " + url);
-			logWriter.println("    entityQuery: " + entityQuery);
-			logWriter.println("     tableQuery: " + tableQuery);
-			logWriter.println("   physNameAttr: " + physNameAttr);
-			logWriter.println("  physNameAttrs: " + physNameAttrs);
-			logWriter.println(" entityAttrLink: " + entityAttrLink);
-			logWriter.println("entityAttrLinks: " + entityAttrLinks);
-			logWriter.println(" tableToColLink: " + tableToColLink);
-			logWriter.println("   delete links: " + deleteLinks);
-			logWriter.println("       log file: " + logFile);
-			logWriter.println("      test mode: " + testOnly);
-
+			logWriter.println("     EDC rest url: " + url);
+			logWriter.println("      entityQuery: " + entityQuery);
+			logWriter.println("       tableQuery: " + tableQuery);
+			logWriter.println("     physNameAttr: " + physNameAttr);
+			logWriter.println(" use owner Schema: " + useOwnerSchema);
+			logWriter.println("     owner Schema: " + ownerSchemaAttr);
+			logWriter.println("    physNameAttrs: " + physNameAttrs);
+			logWriter.println("   entityAttrLink: " + entityAttrLink);
+			logWriter.println("  entityAttrLinks: " + entityAttrLinks);
+			logWriter.println("   tableToColLink: " + tableToColLink);
+			logWriter.println("   entityLinkType: " + entityLinkType);
+			logWriter.println("attributeLinkType: " + attributeLinkType);
+			logWriter.println("     delete links: " + deleteLinks);
+			logWriter.println("         log file: " + logFile);
+			logWriter.println("        test mode: " + testOnly);
+			logWriter.println(" attr Propagation: " + doAttributePropagation);
+			logWriter.println("    attrs to copy: " + attrPropMap);
+	
 			logWriter.flush();
 
 			System.out.println("\tinitializing lineageFile:" + lineageFile);
@@ -305,8 +328,18 @@ public class ModelLinker {
 
 					// assume only a small set of tables could be returned
 					String findTables = tableQuery + " AND core.name_lc_exact:\"" + physicalName + "\"";
+
+					// Note: since v 10.4.x you cannot use core.name_lc_exact
+
 					// 10.22hf1+
 					findTables = tableQuery + " +core.name:\"" + physicalName + "\"";
+					if (useOwnerSchema) {
+						String entitySchema = APIUtils.getValue(or, ownerSchemaAttr);
+						System.out.println("Owner Schema is: " + entitySchema);
+						logWriter.println("Owner Schema is: " + entitySchema);
+						// assume case insensitive autoSuggestMatchId
+						findTables = tableQuery + " +core.autoSuggestMatchId:/" + entitySchema.toUpperCase() + "/" + physicalName.toUpperCase();
+					}
 					System.out.println("\tfinding table (exact name match): " + findTables);
 					logWriter.println("\tfinding table (exact name match): " + findTables);
 					// EDC (client.jar) <=10.2.1
@@ -353,8 +386,8 @@ public class ModelLinker {
 
 						System.out.println("\t\tlinking objects.... " + entityId + " -> " + physTabResp.getId());
 						logWriter.println("\t\tlinking objects.... " + entityId + " -> " + physTabResp.getId());
-						addDatasetLink(entityId, physTabResp.getId(), "core.DataSetDataFlow", deleteLinks);
-						lineageWriter.println("core.DataSetDataFlow" + ",,," + entityId + "," + physTabResp.getId());
+						addDatasetLink(entityId, physTabResp.getId(), entityLinkType, deleteLinks);
+						lineageWriter.println(entityLinkType + ",,," + entityId + "," + physTabResp.getId());
 						datasetLineageLinks++;
 						lineageWriter.flush();
 
@@ -493,9 +526,9 @@ public class ModelLinker {
 								String fromId = entityAttrs.get(colName);
 								logWriter.println(
 										"\t\t\tlinking objects... " + fromId + " -->> " + tabColLink.getInId());
-								addDatasetLink(fromId, tabColLink.getInId(), "core.DirectionalDataFlow", deleteLinks);
+								addDatasetLink(fromId, tabColLink.getInId(), attributeLinkType, deleteLinks);
 								lineageWriter.println(
-										"core.DirectionalDataFlow" + ",,," + fromId + "," + tabColLink.getInId());
+									attributeLinkType + ",,," + fromId + "," + tabColLink.getInId());
 								elementLineageLinks++;
 
 								lineageWriter.flush();
@@ -520,12 +553,12 @@ public class ModelLinker {
 											System.out.println(
 													"WARNING: Axon term already linked, name display name will not be propagated from model");
 										} else {
-											System.out.println("!!!! column comp: is " + leftAttr + "::" + leftVal
+											System.out.println("column comp: is " + leftAttr + "::" + leftVal
 													+ " == " + rightAttr + "::" + rightVal);
 											if (leftVal != null && leftVal.length() > 0) {
 												if (!leftVal.equals(rightVal)) {
 													// copy it ...
-													System.out.println("\t!!!! ready to copy: is " + leftAttr + "::"
+													System.out.println("\tready to copy: is " + leftAttr + "::"
 															+ leftVal + " == " + rightAttr + "::" + rightVal);
 													attrsMap.put(rightAttr, leftVal);
 												}
@@ -535,7 +568,7 @@ public class ModelLinker {
 									if (attrsMap.size() > 0) {
 										System.out.println("\tcalling write attr for id= " + tabColLink.getInId() + " "
 												+ attrsMap);
-										// this.updateObjectFacts(tabColLink.getInId(), attrsMap);
+										this.updateObjectFacts(tabColLink.getInId(), attrsMap);
 									}
 
 								}
@@ -563,7 +596,7 @@ public class ModelLinker {
 		// try {
 		System.out.println("finished... ");
 		System.out.println("\tlineage links total=" + (datasetLineageLinks + elementLineageLinks)
-				+ " core.DataSetDataFlow=" + datasetLineageLinks + " core.DirectionalDataFlow=" + elementLineageLinks);
+				+ " " + entityLinkType + "=" + datasetLineageLinks + " " + attributeLinkType + "=" + elementLineageLinks);
 		System.out.println("\t  objects to update=" + objectsToUpdate);
 		System.out.println("\t    objects updated=" + objectsUpdated);
 		System.out.println("\tlinks written via API=" + totalLinks + " links skipped(existing)=" + existingLinks
@@ -830,9 +863,9 @@ public class ModelLinker {
 			// null);
 
 			// EDC 10.4+
-			ObjectsResponse response = APIUtils.CATALOG_API.catalogDataObjectsGet(null,
-					new ArrayList<String>(Arrays.asList(objectId)), null, 0, 10, null, null, null, null, true, true,
-					null, null);
+			// catalogDataObjectsGet(q, fq, id, offset, pageSize, sort, relatedId, cursor, associations,includeSrcLinks, includeDstLinks, shards, false);
+			ObjectsResponse response = APIUtils.CATALOG_API.catalogDataObjectsGet(null, null ,new ArrayList<String>(Arrays.asList(objectId)), 0, 10, null, null, null, null, true, true,null, null);
+
 
 			total = response.getMetadata().getTotalCount().intValue();
 			offset += pageSize;

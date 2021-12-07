@@ -49,9 +49,9 @@ settings
 
 if you do not want to compile/run from source - an executable version of this utility is available for download.
 
-- from linux:  `wget -O catalog_utils.zip https://d398h.app.goo.gl/edcUtils` 
-- or download directly from <https://d398h.app.goo.gl/edcUtils>
-  - unzip catalog_utils.zip
+- from linux:  `wget -O model_linker.zip.zip https://storage.googleapis.com/edc/model_linker.zip` 
+- or download directly from <https://storage.googleapis.com/edc/model_linker.zip>
+  - unzip model_linker.zip
   - chmod +x *.sh
   
 to run the utility:-

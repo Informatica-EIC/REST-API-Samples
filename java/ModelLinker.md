@@ -55,9 +55,15 @@ if you do not want to compile/run from source - an executable version of this ut
   - chmod +x *.sh
   
 to run the utility:-
-- edit catalog_utils.properties to suit your environment (connection settings `rest_service`,`user`, `password` - if password is empty, you will be prompted)
+- edit.properties to suit your environment (connection settings `rest_service`,`user`, `password` - if password is empty, you will be prompted)
 - `./modelLinker.sh catalog_utils.properties`
-- or modify the .sh to run on windows
+- Model Linker properties are set after the header
+
+        ```
+        #*****************************************************************
+        # Model Linker
+        #*****************************************************************
+        ```
 
 
 ## sample output - console/log small model (Ewrin)

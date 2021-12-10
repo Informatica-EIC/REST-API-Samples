@@ -37,7 +37,7 @@ import com.infa.products.ldm.core.rest.v2.client.utils.ObjectAdapter;
  *
  */
 public class ModelLinker {
-	public static final String version = "1.1";
+	public static final String version = "1.2";
 
 	String url = "";
 	String user = "";
@@ -211,6 +211,7 @@ public class ModelLinker {
 			System.out.println("\tinitializing logFile:" + logFile);
 
 			logWriter = new PrintWriter(logFile, "UTF-8");
+			logWriter.println("Model Linker: version=" + version);
 			logWriter.println("     EDC rest url: " + url);
 			logWriter.println("      entityQuery: " + entityQuery);
 			logWriter.println("       tableQuery: " + tableQuery);
@@ -245,6 +246,7 @@ public class ModelLinker {
 
 		} catch (IOException e1) {
 			e1.printStackTrace();
+			e1.printStackTrace(lineageWriter);
 		}
 
 	}
@@ -337,8 +339,13 @@ public class ModelLinker {
 						String entitySchema = APIUtils.getValue(or, ownerSchemaAttr);
 						System.out.println("Owner Schema is: " + entitySchema);
 						logWriter.println("Owner Schema is: " + entitySchema);
-						// assume case insensitive autoSuggestMatchId
-						findTables = tableQuery + " +core.autoSuggestMatchId:/" + entitySchema.toUpperCase() + "/" + physicalName.toUpperCase();
+						if (entitySchema != null) {
+							// assume case insensitive autoSuggestMatchId
+							findTables = tableQuery + " +core.autoSuggestMatchId:/" + entitySchema.toUpperCase() + "/" + physicalName.toUpperCase();
+						} else {
+							System.out.println("owner schema in model is null - cannot be used to find table " + physicalName);
+							logWriter.println("owner schema in model is null - cannot be used to find table " + physicalName);
+						}
 					}
 					System.out.println("\tfinding table (exact name match): " + findTables);
 					logWriter.println("\tfinding table (exact name match): " + findTables);
@@ -591,6 +598,7 @@ public class ModelLinker {
 
 		} catch (Exception e) {
 			e.printStackTrace();
+			e.printStackTrace(logWriter);
 		}
 
 		// try {
@@ -602,6 +610,16 @@ public class ModelLinker {
 		System.out.println("\tlinks written via API=" + totalLinks + " links skipped(existing)=" + existingLinks
 				+ " linksDeleted=" + deletedLinks);
 		System.out.println("\terrors:  " + errorsFound);
+
+		logWriter.println("finished... ");
+		logWriter.println("\tlineage links total=" + (datasetLineageLinks + elementLineageLinks)
+				+ " " + entityLinkType + "=" + datasetLineageLinks + " " + attributeLinkType + "=" + elementLineageLinks);
+		logWriter.println("\t  objects to update=" + objectsToUpdate);
+		logWriter.println("\t    objects updated=" + objectsUpdated);
+		logWriter.println("\tlinks written via API=" + totalLinks + " links skipped(existing)=" + existingLinks
+				+ " linksDeleted=" + deletedLinks);
+		logWriter.println("\terrors:  " + errorsFound);
+
 		// Path toPath = Paths.get(logFile);
 		// Charset charset = Charset.forName("UTF-8");
 		// Files.write(toPath, logList, charset);
@@ -901,9 +919,13 @@ public class ModelLinker {
 					// will throw exception if the upate does not work
 					updateSucceeded = true;
 					System.out.println("\t\t\tupdate completed successfully. " + newor.getId());
+					logWriter.println("\t\t\tupdate completed successfully. " + newor.getId());
+					
 					// System.out.println(or.getId()+":"+newor);
 				} catch (ApiException e) {
 					System.out.println("ERROR: update failed: " + e.getMessage());
+					logWriter.println("ERROR: update failed: " + e.getMessage());
+
 					// e.printStackTrace();
 				}
 

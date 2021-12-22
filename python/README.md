@@ -101,6 +101,14 @@ Sample Programs in the Project
 * `xdocAnalyzer.py` - use this script to download xdocs for a resource and analyze the contents (counts # of objects by type, # of attributes) and will analyze all links + connection assignments.  can be useful for troubleshooting (especially for resources that do not yet support reference objects)
   * supports command-line parameters and environment vars for accessing the catalog.
   * uses edcSessionHelper.py to get a session reference to any rest queries
+* `xdoc_lineage_gen.py` - similar to xdocAnalyzer - but only exports custom lineage .csv file. and allows substitution of values
+  * this will be useful when the scanner creates lineage that cannot be linked (e.g. missing variable substitution)
+  * can use a csv file to use regex patterns to search & replace any string in the from/to connection id's
+  * use cmd flag -i | -edcimport to create/replace and start custom lineage import
+  * use cmd -sf | --subst_file <filename>  to specify a csv file with column header: from_regex,replace_expr
+  * supports command-line parameters and environment vars for accessing the catalog.
+  * uses edcSessionHelper.py to get a session reference to any rest queries
+
 * `setParentFilterValues.py` - use this script to update in bulk relational objects with a custom attribute containing the value of the schema the object belongs to. This will faceting by schema name in search results, as well as creating custom tab pointing to specific database schema within a resource, see [setParentFilterValues.md](setParentFilterValues.md) for more info
 
 

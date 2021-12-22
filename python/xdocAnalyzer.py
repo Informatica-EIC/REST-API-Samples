@@ -29,8 +29,10 @@ parser = argparse.ArgumentParser(parents=[edcHelper.argparser])
 # parser = argparse.ArgumentParser()
 # add args specific to this utility (resourceName, resourceType, outDir, force)
 parser.add_argument(
-    "-rn", "--resourceName", required=("--setup" not in sys.argv), 
-    help="resource name for xdoc download"
+    "-rn",
+    "--resourceName",
+    required=("--setup" not in sys.argv),
+    help="resource name for xdoc download",
 )
 parser.add_argument(
     "-rt",
@@ -59,9 +61,13 @@ parser.add_argument(
     ),
 )
 
-parser.add_argument("--setup", required=False,
+parser.add_argument(
+    "--setup",
+    required=False,
     action="store_true",
-    help=("setup the connection to EDC by creating a .env file - same as running python3 setupConnection.py")
+    help=(
+        "setup the connection to EDC by creating a .env file - same as running python3 setupConnection.py"
+    ),
 )
 
 
@@ -326,9 +332,8 @@ def init_files(resourceName: str, outFolder: str):
             "association",
             "fromObjectIdentity",
             "toObjectIdentity",
-            "linkType",
-            "ObjectID",
-            "ObjectHref",
+            "fromObjectConnectionName",
+            "toObjectConnectionName",
         ]
     )
 
@@ -458,12 +463,12 @@ def process_xdoc_links(data):
         linkCount += 1
         fromId = links.get("fromObjectIdentity")
         toId = links.get("toObjectIdentity")
-        fromConn = links.get("fromObjectConnectionName")
-        toConn = links.get("toObjectConnectionName")
+        fromConn = links.get("fromObjectConnectionName", "")
+        toConn = links.get("toObjectConnectionName", "")
         assoc = links.get("association")
         props = links.get("properties")
         if fromId.startswith("${"):
-            fromConn = fromId[: fromId.find("}") + 1]
+            fromConn = fromId[2 : fromId.rfind("}")]
             mem.connectables.add(fromId)
             mem.leftExternalCons += 1
             # thecount = mem.leftRightConnectionObjects.get(assoc, 0)
@@ -491,7 +496,7 @@ def process_xdoc_links(data):
             # end of if it is a to connection
 
         if toId.startswith("${"):
-            toConn = toId[: toId.find("}") + 1]
+            toConn = toId[2 : toId.rfind("}")]
             mem.rightExternalCons += 1
             mem.connectables.add(toId)
             mem.leftRightConnectionObjects[assoc] = (
@@ -510,12 +515,12 @@ def process_xdoc_links(data):
             connLinks.add(toId)
             cStats2[assoc] = connLinks  # sorted ???connLinks
             mem.connectionInstances[toConn] = cStats2
-            mem.connectionlinkWriter.writerow(
-                [assoc, fromId, toId, fromConn, toConn, props]
-            )
+            # mem.connectionlinkWriter.writerow(
+            #     [assoc, fromId, toId, fromConn, toConn, props]
+            # )
 
         mem.alllinkWriter.writerow([assoc, fromId, toId, fromConn, toConn, props])
-        if fromConn != "" and toConn != "":
+        if fromConn != "" or toConn != "":
             mem.connectionlinkWriter.writerow(
                 [assoc, fromId, toId, fromConn, toConn, props]
             )

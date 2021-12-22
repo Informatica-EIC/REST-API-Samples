@@ -23,10 +23,14 @@ import re
 import logging
 import edcutils
 
+if not os.path.exists("./log"):
+    print(f"creating log folder ./log")
+    os.makedirs("./log")
+
 logging.basicConfig(
     format="%(asctime)s:%(levelname)-8s:%(module)s:%(message)s",
     level=logging.DEBUG,
-    filename="xdoc_lineage_gen.log",
+    filename="./log/xdoc_lineage_gen.log",
     filemode="w",
 )
 

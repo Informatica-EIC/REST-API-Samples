@@ -17,3 +17,5 @@ dist/
 .env
 .venv/*
 ca_pam_integration/*
+log/*
+.venv*/*

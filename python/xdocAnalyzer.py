@@ -18,6 +18,7 @@ import sys
 import argparse
 import edcSessionHelper
 from zipfile import ZipFile
+import setupConnection
 
 edcHelper = edcSessionHelper.EDCSession()
 
@@ -28,7 +29,8 @@ parser = argparse.ArgumentParser(parents=[edcHelper.argparser])
 # parser = argparse.ArgumentParser()
 # add args specific to this utility (resourceName, resourceType, outDir, force)
 parser.add_argument(
-    "-rn", "--resourceName", required=True, help="resource name for xdoc download"
+    "-rn", "--resourceName", required=("--setup" not in sys.argv), 
+    help="resource name for xdoc download"
 )
 parser.add_argument(
     "-rt",
@@ -55,6 +57,11 @@ parser.add_argument(
         "force overwrite of xdoc json file (if already existing), "
         "otherwise just use the .json file"
     ),
+)
+
+parser.add_argument("--setup", required=False,
+    action="store_true",
+    help=("setup the connection to EDC by creating a .env file - same as running python3 setupConnection.py")
 )
 
 
@@ -90,6 +97,12 @@ def main():
     outFolder = "./out"
 
     args = args, unknown = parser.parse_known_args()
+    if args.setup:
+        # if setup is requested (running standalone)
+        # call setupConnection to create a .env file to use next time we run without setup
+        print("setup requested..., calling setupConnection & exiting")
+        setupConnection.main()
+        return
     # setup edc session and catalog url - with auth in the session header,
     # by using system vars or command-line args
     edcHelper.initUrlAndSessionFromEDCSettings()
@@ -98,6 +111,7 @@ def main():
 
     print(f"command-line args parsed = {args} ")
     print()
+
     # print(type(args))
     if args.resourceName is not None:
         resourceName = args.resourceName

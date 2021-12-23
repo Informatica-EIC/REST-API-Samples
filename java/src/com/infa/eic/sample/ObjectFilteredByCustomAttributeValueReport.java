@@ -2,8 +2,6 @@ package com.infa.eic.sample;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import com.infa.products.ldm.core.rest.v2.client.invoker.ApiException;

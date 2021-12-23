@@ -14,7 +14,7 @@ Requirements
 * Libraries (best to use maven and pom.xml for easiest setup)
   * client.jar: Download from your EIC instance: http://cataloghost:port/access/2/files/client.jar
   * to add to your local maven repository (for your edc version) - e.g. for v10.5.0.1
-    * `mvn install:install-file -Dfile=client.jar -DgroupId=com.infa.products.ldm.core.rest.v2.client -DartifactId=EDC-Rest-Client -Dversion=10.5.0.1`
+    * `mvn install:install-file -Dfile=client.jar -DgroupId="com.infa.products.ldm.core.rest.v2.client" -DartifactId=EDC-Rest-Client -Dversion="10.5.0.1" -Dpackaging=jar`
     * and edit pom.xml to use the same version - e.g. 10.4.1.3, 10.5.0, 10.5.0.1, 10.5.1
 
   

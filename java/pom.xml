@@ -18,7 +18,7 @@
         <dependency>
             <groupId>com.infa.products.ldm.core.rest.v2.client</groupId>
             <artifactId>EDC-Rest-Client</artifactId>
-            <version>10.4.1.3</version>
+            <version>10.5.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

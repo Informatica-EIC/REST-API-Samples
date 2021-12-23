@@ -10,3 +10,4 @@ java/lib/client.jar
 .vscode/*
 **/.DS_Store
 java/target/*
+.vscode/*

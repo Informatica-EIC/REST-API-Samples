@@ -4,13 +4,10 @@ contains examples for connecting to and querying EDC via python
 
 Requirements
 ------------
-* python 3.6+ - legacy python will not be actively tested
-  * why? support for legacy python stops 1/1/2020, fstrings, unicode, async, many other 3rd party libraries like pandas, numpy, django are also not supporting legacy python 
-* Note:  some scipts will work with legacy python (v2.7) but these are not maintained or heavily tested
-  * any script with a suffix of 27 should work on legacy python systems
-  * if you can't easily install python 3.x (e.g 3.7) - you could use docker to run the code in a python3 container, or send a request for us to create a compiled binary executable (e.g. using pyinstaller)
+* python 3.6+ - legacy python will not be actively tested - best to use recent versions like 3.8+, since v3.6 is no longer supported - see https://endoflife.date/python
+  * if you can't easily install python 3.x (e.g 3.7, 3.8, 3.9, 3.10) - you could use docker to run the code in a python3 container, or send a request for us to create a compiled binary executable (e.g. using pyinstaller)
 * Python editors (ide/environments)
-  * VS Code - good support for python - free an runs on all platforms  https://code.visualstudio.com/
+  * VS Code - great support for python & other languages, free an runs on all platforms  https://code.visualstudio.com/
   * pycharm - https://www.jetbrains.com/pycharm/
   * anaconda - for JupterLab/Notebooks https://www.anaconda.com/ (includes vscode)
   * Eclipse - ide for java/python (python using/installing pydev)
@@ -19,6 +16,7 @@ Requirements
   * rest api clients - for testing syntax/api calls + the good ones generate code for many languages
     * postman - https://www.getpostman.com/
     * insomnia - https://insomnia.rest/
+    * vscode also has a good requests plugin - Thunder Client https://marketplace.visualstudio.com/items?itemName=rangav.vscode-thunder-client
 
  
 Getting Started
@@ -27,13 +25,14 @@ Getting Started
 * Create a new VSCode/pycharm/Eclipse Project and import/use the files in the python folder (not the java folder)
 * Ensure EDC is running while executing the samples - try/except code will catch & immediately exit
 * best practice is to use a virtual environment with python
-  * e.g. python -m venv .edcvenv  
+  * e.g. python -m venv .venv  
   * and then 
-    * source .edcvenv/bin/activate (for linux/macox)
-    * .edcvenv/Scripts/activate.ps1 (for windows powershell)
+    * source .venv/bin/activate (for linux/macos)
+    * .venv/Scripts/activate.ps1 (for windows powershell)
       Note:  you may need to execute `Set-ExecutionPolicy unrestricted` for powershell (run powershell as administrator to do this)
-    * .edcvenv/Scripts/activate.bat (windows cmd)
+    * .venv/Scripts/activate.bat (windows cmd - rarely tested, preference should be powershell/windows terminal)
   * after activating (or using your base python3.6+), execute `pip install -r requirements.txt` (will install any packages referecned in requirements .txt file - including requests, openpyxl and python-dotenv)
+    * this will require internet access.  if you don't have direct access - we will need to create a download package/instructions for each platform (linux/windows/macos)
 
 
 REST API Authentication
@@ -57,7 +56,7 @@ REST API Authentication
 
 HTTPS/TLS/SSL Connections and certificates
 ------------------------------------------
-* assuming your catalog service is https enabled (it should be, if not so your passwords are send in clear text & set verify=False)
+* assuming your catalog service is https enabled (it should be, if not so your passwords are send in clear text) verify=False, or use the -s False command-line setting
 * you will either need to download/copy the certificate (.pem format, not .jks) locally
   * or set flags to disable certificate authentication (not recommended, but possible) 
 * if your ssl certificate is self signed (also not recommended), an additional warning will need to be suppressed
@@ -103,9 +102,14 @@ Sample Programs in the Project
   * uses edcSessionHelper.py to get a session reference to any rest queries
 * `xdoc_lineage_gen.py` - similar to xdocAnalyzer - but only exports custom lineage .csv file. and allows substitution of values
   * this will be useful when the scanner creates lineage that cannot be linked (e.g. missing variable substitution)
-  * can use a csv file to use regex patterns to search & replace any string in the from/to connection id's
   * use cmd flag -i | -edcimport to create/replace and start custom lineage import
   * use cmd -sf | --subst_file <filename>  to specify a csv file with column header: from_regex,replace_expr
+    * format of csv file is from_regex,replace_expr
+    * example: 
+      ```
+      from_regex,replace_expr
+      "\#\$\[(\S+)[^\/]*\#","\g<1>"
+      ```
   * supports command-line parameters and environment vars for accessing the catalog.
   * uses edcSessionHelper.py to get a session reference to any rest queries
 
@@ -113,3 +117,4 @@ Sample Programs in the Project
 
 
 
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)

@@ -66,7 +66,8 @@ parser.add_argument(
     required=False,
     action="store_true",
     help=(
-        "setup the connection to EDC by creating a .env file - same as running python3 setupConnection.py"
+        "setup the connection to EDC by creating a .env file"
+        " - same as running python3 setupConnection.py"
     ),
 )
 
@@ -105,7 +106,7 @@ def main():
     args = args, unknown = parser.parse_known_args()
     if args.setup:
         # if setup is requested (running standalone)
-        # call setupConnection to create a .env file to use next time we run without setup
+        # call setupConnection to create a .env file to use for subsequent runs
         print("setup requested..., calling setupConnection & exiting")
         setupConnection.main()
         return
@@ -236,7 +237,8 @@ def get_exdocs_json(
     get the pre 10.5 jsonl version of xdocs from EDC (or use from cached file)
     """
     print(
-        f"xdoc analyzer 10.4.x and earlier - starting xdod extract for resource={resource_name}"
+        "xdoc analyzer 10.4.x and earlier - "
+        f"starting xdoc extract for resource={resource_name}"
     )
     xdocurl = f"{edcHelper.baseUrl}/access/1/catalog/data/downloadXdocs"
     parms = {"resourceName": resource_name, "providerId": resource_type}
@@ -432,16 +434,16 @@ def process_xdoc_json(data):
         mem.allproperties += 1
         attrName = prop["attributeName"]
         attrVal = prop["value"]
-        obj_id = prop["objectIdentity"]
+        # obj_id = prop["objectIdentity"]
         if attrVal != "":
             mem.notnull_properties += 1
-            "com.infa.ldm.etl.pc.Expression"
-            "com.infa.ldm.etl.pc.SqlQuery"
-            if attrName == "com.infa.ldm.etl.pc.Expression":
-                print(f"sql query {attrVal} for id:{obj_id}")
+            # "com.infa.ldm.etl.pc.Expression"
+            # "com.infa.ldm.etl.pc.SqlQuery"
+            # if attrName == "com.infa.ldm.etl.pc.Expression":
+            #     print(f"PC Expression {attrVal} for id:{obj_id}")
 
-            if attrName == "com.infa.ldm.warehouse.sapbwhana.Value":
-                print(f">>sap value/calc::\n{attrVal}\n<<sap text::for id:{obj_id}")
+            # if attrName == "com.infa.ldm.warehouse.sapbwhana.Value":
+            #     print(f">>sap value/calc::\n{attrVal}\n<<sap text::for id:{obj_id}")
         # increment the property counter, initialize to 1 for new properties
         mem.propDict[attrName] = mem.propDict.get(attrName, 0) + 1
 
@@ -451,7 +453,10 @@ def process_xdoc_json(data):
 
     mem.totalLinks += linkCount
     mem.totalObjects += objects
-    print("\tobjects=: " + str(objects) + " links: " + str(linkCount))
+    print(
+        f"\tobjects=: {objects} links: {linkCount} "
+        f"properties: {len(data['properties'])}"
+    )
 
 
 def process_xdoc_links(data):

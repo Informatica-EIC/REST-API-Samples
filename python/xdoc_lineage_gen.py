@@ -1,9 +1,15 @@
 """
-Created on Oct 31, 2018
+Created January, 2022
 
 create custom lineage csv file export from xdocs
-this is useful where scanners are not producing correct lineage
-allows the user to specify regex find/replace strings via config/substitition csv file (can be multiple)
+this is useful where scanners are not producing correct lineage, or you just need to
+get a good idea of the objects that should be linked.
+
+it allows the user to specify regex find/replace strings via config/substitition csv
+file (can be multiple)
+
+Note:  this works with EDC 10.5+ only (10.4.x processing removed)
+
 usage:  xdoc_lineage_gen.py  <parms>
 
 @author: dwrigley
@@ -22,9 +28,14 @@ import setupConnection
 import re
 import logging
 import edcutils
+import urllib3
+import time
+
+urllib3.disable_warnings()
+
 
 if not os.path.exists("./log"):
-    print(f"creating log folder ./log")
+    print("creating log folder ./log")
     os.makedirs("./log")
 
 logging.basicConfig(
@@ -54,6 +65,7 @@ class mem:
     subst_count = 0
 
     lineage_csv_filename = ""
+    links_written = 0
 
     lineCount = 0
     data = []
@@ -66,16 +78,9 @@ class mem:
     propDict = {}
     refObjects = 0
 
+    not_changed_count = 0
 
-class JsonSetEncoder(json.JSONEncoder):
-    """
-    convert set to list for dumping json to file (sort the set too)
-    """
-
-    def default(self, o):
-        if isinstance(o, set):
-            return list(sorted(o))
-        return super(JsonSetEncoder, self).default(o)
+    # fConnLinks: File
 
 
 def setup_cmd_parser():
@@ -101,6 +106,7 @@ def setup_cmd_parser():
         "-o",
         "--outDir",
         required=False,
+        default="./out",
         help=(
             "output folder to write results - default = ./out "
             " - will create folder if it does not exist"
@@ -116,6 +122,13 @@ def setup_cmd_parser():
             "force overwrite of xdoc json file (if already existing), "
             "otherwise just use the .json file"
         ),
+    )
+
+    parser.add_argument(
+        "--modifiedonly",
+        action="store_true",
+        required=False,
+        help=("export only modified lineage links (not all external links)"),
     )
 
     parser.add_argument(
@@ -142,7 +155,8 @@ def setup_cmd_parser():
         required=False,
         action="store_true",
         help=(
-            "setup the connection to EDC by creating a .env file - same as running setupConnection.py"
+            "setup the connection to EDC by creating a .env file"
+            " - same as running setupConnection.py"
         ),
     )
 
@@ -156,15 +170,17 @@ def main():
     downloads the xdocs then calls the function to read the xdocs and print a summary
     """
 
+    start_time = time.time()
     resourceName = ""
     resourceType = ""
     outFolder = "./out"
 
+    # get the command-line args passed
     cmd_parser = setup_cmd_parser()
     args, unknown = cmd_parser.parse_known_args()
     if args.setup:
         # if setup is requested (running standalone)
-        # call setupConnection to create a .env file to use next time we run without setup
+        # call setupConnection to create a .env file to use next time we run
         print("setup requested..., calling setupConnection & exiting")
         setupConnection.main()
         return
@@ -209,26 +225,40 @@ def main():
         print(f"substitution file referenced in command-line {args.subst_file}")
         mem.subst_dict = read_subst_regex_file(args.subst_file)
 
-    # ready to extract/process xdocs - but it is version specific (<10.5 = jsonl, >=10.5 zip)
-    if edcHelper.edcversion >= 105000:
-        print("EDC 10.5+ found... calling 10.5 exdoc analyzer")
-        get_exdocs_zip(resourceName, resourceType, outFolder, args.force)
-    else:
-        # 10.4.x and before - xdocs are returned as jsonl
-        get_exdocs_json(resourceName, resourceType, outFolder, args.force)
+    # ready to extract/process xdocs - >=10.5 zip (older 10.4.x not supported))
+    if edcHelper.edcversion < 105000:
+        print(
+            "EDC <= 10.5.0 is not supported for this utility script,"
+            f" {edcHelper.edc_build_vers} found.  exiting"
+        )
+        logging.ERROR(
+            "EDC <= 10.5.0 is not supported for this utility script,"
+            f" {edcHelper.edc_build_vers} found.  exiting"
+        )
+        return
 
-    # write_xdoc_results(resourceName, outFolder)
+    print("EDC 10.5+ found... calling 10.5 exdoc analyzer")
+    # get and process the xdocs
+    get_exdocs_zip(resourceName, resourceType, outFolder, args.force)
 
     logging.info("xdoc_lineage_gen process completed")
     print(f"lineage file written: {mem.lineage_csv_filename}")
     logging.info(f"lineage file written: {mem.lineage_csv_filename}")
+    print(f"lineage links written: {mem.links_written}")
+    logging.info(f"lineage links written: {mem.links_written}")
+    print(f"lineage links skipped (unchanged): {mem.not_changed_count}")
+    logging.info(f"lineage links skipped (unchanged): {mem.not_changed_count}")
+
+    print(f"run time = {time.time() - start_time} seconds ---")
 
     if not args.edcimport:
         print(
-            "\ncustom lineage resource will not be created/updated/executed. use -i|-edcimport flag to enable"
+            "\ncustom lineage resource will not be created/updated/executed."
+            " use -i|-edcimport flag to enable"
         )
         logging.info(
-            "custom lineage resource will not be created/updated/executed. use -i|-edcimport flag to enable"
+            "custom lineage resource will not be created/updated/executed."
+            " use -i|-edcimport flag to enable"
         )
         return ()
 
@@ -237,10 +267,12 @@ def main():
         mem.lineage_csv_filename.rfind("/") + 1 :
     ]
     print(
-        f"ready to create/update lineage resource... {lineage_resource} from {mem.lineage_csv_filename} {lineage_fileonly}"
+        "ready to create/update lineage resource..."
+        f" {lineage_resource} from {mem.lineage_csv_filename} {lineage_fileonly}"
     )
     logging.info(
-        f"ready to create/update lineage resource... {lineage_resource} from {mem.lineage_csv_filename} {lineage_fileonly}"
+        "ready to create/update lineage resource..."
+        f" {lineage_resource} from {mem.lineage_csv_filename} {lineage_fileonly}"
     )
 
     # create/update & start the custom lineage import
@@ -327,9 +359,9 @@ def get_exdocs_zip(
                     print(f"xdoc size={len(resp.content)}")
                     print(f"xdoc files written to {xdoc_filename}")
                     logging.info(
-                        f"xdoc files written to {xdoc_filename} size={len(resp.content)}"
+                        f"xdoc files written to {xdoc_filename}"
+                        f" size={len(resp.content)}"
                     )
-                    # processXdocDownloadFile(xdocFile, resourceName, outFolder)
             else:
                 print(
                     f"api call returned non 200 status_code: {resp.status_code} "
@@ -348,94 +380,27 @@ def get_exdocs_zip(
     close_files()
 
 
-def get_exdocs_json(
-    resource_name: str, resource_type: str, out_folder: str, force_extract: bool
-):
-    # 10.4.x and before - xdocs are returned as jsonl
-    """
-    get the pre 10.5 jsonl version of xdocs from EDC (or use from cached file)
-    """
-    print(
-        f"xdoc analyzer 10.4.x and earlier - starting xdod extract for resource={resource_name}"
-    )
-    xdocurl = f"{edcHelper.baseUrl}/access/1/catalog/data/downloadXdocs"
-    parms = {"resourceName": resource_name, "providerId": resource_type}
-    print(f"executing xdoc download via endpoint: {xdocurl} with params={parms}")
-
-    # xdoc_filename = out_folder + "/" + resource_name + "__" + resource_type + ".zip"
-    xdoc_filename = f"{out_folder}/{resource_name}__{resource_type}__xdocs.json"
-
-    # only get xdocs .zip file if either new, or forced (use cache otherwise)
-    if (not os.path.isfile(xdoc_filename)) or (
-        os.path.isfile(xdoc_filename) and force_extract
-    ):
-        print("generate new xdocs...")
-        try:
-            resp = edcHelper.session.get(xdocurl, params=parms, timeout=20)
-            if resp.status_code == 200:
-                with open(xdoc_filename, "wb") as outfile:
-                    outfile.write(resp.content)
-                    print(f"xdoc size={len(resp.text)}")
-                    print(f"xdoc files written to {xdoc_filename}")
-                    # processXdocDownloadFile(xdocFile, resourceName, outFolder)
-            else:
-                print(
-                    f"api call returned non 200 status_code: {resp.status_code} "
-                    f" {resp.text}"
-                )
-
-        except requests.exceptions.RequestException as e:
-            print("Exception raised when executing edc query: " + xdocurl)
-            print(e)
-
-    init_files(resource_name, out_folder)
-    # archive = ZipFile(xdoc_filename, "r")
-    # files = archive.namelist()
-    # print(f"xdoc files in zip = {len(files)}")
-    process_xdocs_jsonl(xdoc_filename, resource_name, out_folder)
-    close_files()
-
-
 def process_xdocs_zipped(zipfileName: str, resourceName: str, outFolder: str):
     """
     read a .zip file that was saved/downloaded with all xdocs.
     """
     archive = ZipFile(zipfileName, "r")
     files = archive.namelist()
+    info_list = archive.infolist()
     mem.lineCount = len(files)
 
-    with ZipFile(zipfileName) as zipped_xdocs:
-        for xdfile in files:
+    with archive as zipped_xdocs:
+        for pos, xdfile in enumerate(files):
             with zipped_xdocs.open(xdfile) as xdoc_file:
-                print(f"\tprocessing file: {xdfile}")
+                print(
+                    f"\tprocessing file {pos+1} of {len(files)}:"
+                    f" {xdfile} size={info_list[pos].file_size/1024:,.0f} KB"
+                )
                 logging.info(f"processing xdoc file: {xdfile}")
                 data = json.loads(xdoc_file.read())
-                # print(data)
                 process_xdoc_json(data)
 
     # write results to file(s)
-    write_xdoc_results(resourceName, outFolder)
-
-
-def process_xdocs_jsonl(fileName: str, resourceName: str, outFolder: str):
-    """
-    read a .json file that was saved/downloaded with all xdocs.
-    these are jsonl files (1 line per json) & comes from
-    the 1/catalog/data/downloadXdocs endpoint
-
-    after reading - collect information about what objects are in there,
-    the counts of links, and especially collect details of connection objects
-    it will help understand connection assignments
-    """
-
-    lineCount = 0
-
-    with open(fileName) as f:
-        for line in f:
-            lineCount += 1
-            data = json.loads(line)
-            process_xdoc_json(data)
-
     write_xdoc_results(resourceName, outFolder)
 
 
@@ -515,12 +480,14 @@ def replace_via_regex(from_string) -> str:
         new_val = p.sub(subst_expr, replaced_val)
         if new_val != replaced_val:
             logging.info(
-                f"replaced... \n\t\tfrom={replaced_val} \n\t\tto  ={new_val} \n\t\tusing regex='{regex}' and subst='{subst_expr}'"
+                f"replaced... \n\tfrom={replaced_val} \n\t"
+                f"to  ={new_val} \n\t\tusing regex='{regex}' and subst='{subst_expr}'"
             )
             replaced_val = new_val
             if replaced_val[:1] != "$":
                 logging.info(
-                    f"probable edge case: {from_string} does not appear to be a connection reference, but was substitited"
+                    f"probable edge case: {from_string} does not appear to be a "
+                    "connection reference, but was substitited"
                 )
 
     return replaced_val
@@ -546,22 +513,17 @@ def process_xdoc_links(data):
     replaced_count = 0
     for links in data["links"]:
         linkCount += 1
-        fromId = replace_via_regex(links.get("fromObjectIdentity"))
-        if fromId != links.get("fromObjectIdentity"):
-            mem.subst_count += 1
-            replaced_count += 1
-
-        toId = replace_via_regex(links.get("toObjectIdentity"))
-        if toId != links.get("toObjectIdentity"):
-            mem.subst_count += 1
-            replaced_count += 1
+        is_substituted = False
+        to_conn = ""
+        fromId = links.get("fromObjectIdentity")
+        toId = links.get("toObjectIdentity")
+        assoc = links.get("association")
 
         # extract connection names & new id's
+        # get standard/defaults for from/to objects and the connection
         from_conn, from_actual_id = split_connection_from_id(fromId)
         to_conn, to_actual_id = split_connection_from_id(toId)
 
-        # note fromObjectConnectionName & toObjectConnectionName are always null, and do not exist in 10.5+
-        assoc = links.get("association")
         # overall association counts
         if assoc in mem.assocCounts.keys():
             mem.assocCounts[assoc] = mem.assocCounts[assoc] + 1
@@ -570,13 +532,24 @@ def process_xdoc_links(data):
 
         has_connection = False
 
-        if fromId.startswith("${"):
+        if links.get("fromObjectIdentity").startswith("${"):
+            # it is a connection link
+            orig_fromId = links.get("fromObjectIdentity")
+            fromId = replace_via_regex(orig_fromId)
+            if fromId != orig_fromId:
+                mem.subst_count += 1
+                replaced_count += 1
+                is_substituted = True
+
+            from_conn, from_actual_id = split_connection_from_id(fromId)
+
             has_connection = True
             if len(from_actual_id) == 0:
                 # remove the <conn_name>.  leaving only the schema name
                 from_actual_id = from_conn[from_conn.find(".") + 1 :]
                 logging.info(
-                    f"\tprobably a schema link... {assoc} {from_conn} removing chars left of . for the schema name {from_actual_id}"
+                    f"\tprobably a schema link... {assoc} {from_conn} removing "
+                    f"chars left of . for the schema name {from_actual_id}"
                 )
 
             mem.leftExternalCons += 1
@@ -588,7 +561,16 @@ def process_xdoc_links(data):
             cStats[assoc] = connLinkCount
             mem.connectionStats[from_conn] = cStats
 
-        if toId.startswith("${"):
+        if links.get("toObjectIdentity").startswith("${"):
+            orig_toId = links.get("toObjectIdentity")
+            toId = replace_via_regex(orig_toId)
+            if toId != orig_toId:
+                mem.subst_count += 1
+                replaced_count += 1
+                is_substituted = True
+
+            to_conn, to_actual_id = split_connection_from_id(toId)
+
             has_connection = True
             mem.rightExternalCons += 1
 
@@ -600,15 +582,19 @@ def process_xdoc_links(data):
             mem.connectionStats[to_conn] = cStats
 
         if has_connection:
-            mem.connectionlinkWriter.writerow(
-                [
-                    assoc,
-                    from_conn,
-                    to_conn,
-                    from_actual_id,
-                    to_actual_id,
-                ]
-            )
+            if is_substituted:
+                mem.links_written += 1
+                mem.connectionlinkWriter.writerow(
+                    [
+                        assoc,
+                        from_conn,
+                        to_conn,
+                        from_actual_id,
+                        to_actual_id,
+                    ]
+                )
+            else:
+                mem.not_changed_count += 1
 
     return linkCount, replaced_count
 

@@ -326,7 +326,10 @@ def init_files(resourceName: str, outFolder: str):
     """
     # create the files and store in mem object for reference later
     mem.fConnLinks = open(
-        f"{outFolder}/{resourceName}_xdoc_connection_links.csv", "w", newline=""
+        f"{outFolder}/{resourceName}_xdoc_connection_links.csv",
+        "w",
+        newline="",
+        encoding="utf-8",
     )
     mem.connectionlinkWriter = csv.writer(mem.fConnLinks)
     mem.connectionlinkWriter.writerow(
@@ -339,7 +342,9 @@ def init_files(resourceName: str, outFolder: str):
         ]
     )
 
-    mem.allLinks = open(f"{outFolder}/{resourceName}_xdoc_links.csv", "w", newline="")
+    mem.allLinks = open(
+        f"{outFolder}/{resourceName}_xdoc_links.csv", "w", newline="", encoding="utf-8"
+    )
     mem.alllinkWriter = csv.writer(mem.allLinks)
     mem.alllinkWriter.writerow(
         [
@@ -433,6 +438,9 @@ def process_xdoc_json(data):
     for prop in data["properties"]:
         mem.allproperties += 1
         attrName = prop["attributeName"]
+        if "value" not in prop:
+            print(f"\tmissing value from {attrName}")
+            continue
         attrVal = prop["value"]
         # obj_id = prop["objectIdentity"]
         if attrVal != "":
@@ -442,6 +450,18 @@ def process_xdoc_json(data):
             # if attrName == "com.infa.ldm.etl.pc.Expression":
             #     print(f"PC Expression {attrVal} for id:{obj_id}")
 
+            # if attrName == "com.infa.ldm.spotfire.SQLStatement":
+            #     print(
+            #         f"code::\n{obj.get('objectIdentity')}\n--com.infa.ldm.spotfire.SQLStatement={attrVal}"
+            #     )
+            # if attrName == "com.infa.ldm.spotfire.Script":
+            #     print(
+            #         f"code::\n{obj.get('objectIdentity')}\n--com.infa.ldm.spotfire.Script={attrVal}"
+            #     )
+            # if attrName == "com.infa.ldm.spotfire.Expression":
+            #     print(
+            #         f"code::\n{obj.get('objectIdentity')}\n--com.infa.ldm.spotfire.Expression={attrVal}"
+            #     )
             # if attrName == "com.infa.ldm.warehouse.sapbwhana.Value":
             #     print(f">>sap value/calc::\n{attrVal}\n<<sap text::for id:{obj_id}")
         # increment the property counter, initialize to 1 for new properties

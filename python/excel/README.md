@@ -8,6 +8,7 @@ the original link posted is no longer valid (was a public s3 bucket) - the indiv
 
 - the example was created in 2019 & is still valid with current versions
 - there are some newer api's available that may be better/faster
-  - a patch method for objects
-  - bulk import using csv
+  - PATCH /2/catalog/data/objects/{id}  to update an object  (does not require an eTag)
+  - POST /2/catalog/jobs/objectImports - Catalog Object Import - bulk import (same as the csv export/import from EDC ui)
 
+for any problems, raise an issue in this github repository

@@ -229,7 +229,8 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
             # if assocId=='com.infa.ldm.relational.SchemaTable':
             if (assocId.endswith(".SchemaTable")
                or assocId == "com.infa.adapter.snowflake.PackageFlatRecord_table"
-               or assocId == "com.infa.ldm.relational.SAPHanaPackageCalculationView"):
+               or assocId == "com.infa.ldm.relational.SAPHanaPackageCalculationView"
+               or assocId == "core.DataSourceDataSets"):
                 # note - custom lineage does not need table and column
                 # count the tables & store table names
                 tableCount += 1
@@ -245,7 +246,8 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
             if (assocId.endswith(".TableColumn")
                or assocId.endswith(".TablePrimaryKeyColumn")
                or assocId == "com.infa.adapter.snowflake.FlatRecord_tableField"
-               or assocId == "com.infa.ldm.relational.CalculationViewAttribute"):
+               or assocId == "com.infa.ldm.relational.CalculationViewAttribute"
+               or assocId.startswith("com.infa.ldm.mdm.")):
                 # columnName = inId.split('/')[-1]
                 columnCount += 1
                 columnName = edcutils.getFactValue(

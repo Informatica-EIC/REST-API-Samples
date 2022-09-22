@@ -207,6 +207,7 @@ def main():
     if args.resourceType is None:
         print("we have a resource name - but no type - need to look it up")
         resourceType = getResourceType(resourceName, edcHelper.session)
+
     else:
         resourceType = args.resourceType
 
@@ -237,7 +238,7 @@ def main():
         )
         return
 
-    print("EDC 10.5+ found... calling 10.5 exdoc analyzer")
+    print("EDC 10.5+ found... calling 10.5 exdoc lineage gen")
     # get and process the xdocs
     get_exdocs_zip(resourceName, resourceType, outFolder, args.force)
 
@@ -319,7 +320,8 @@ def getResourceType(resourceName, session) -> str:
     resourceType = None
     try:
         resturl = session.baseUrl + "/access/1/catalog/resources/" + resourceName
-        resp = session.get(resturl, timeout=3)
+        print(f"calling:  #{resturl}#")
+        resp = session.get(resturl, timeout=30)
     except requests.exceptions.RequestException as e:
         print("Error connecting to : " + resturl)
         print(e)
@@ -328,7 +330,10 @@ def getResourceType(resourceName, session) -> str:
     if resp.status_code == 200:
         resJson = resp.json()
         resourceType = resJson["scannerConfigurations"][0]["scanner"]["scannerId"]
+    else:
+        print(f"non 200 response: {resp.status_code} {resp.text}")
 
+    print(f"returning: {resourceType}")
     return resourceType
 
 

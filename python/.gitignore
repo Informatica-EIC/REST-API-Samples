@@ -20,3 +20,4 @@ ca_pam_integration/*
 log/*
 .venv*/*
 out*/*
+test/*

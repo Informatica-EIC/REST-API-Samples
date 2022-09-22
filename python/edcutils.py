@@ -10,6 +10,10 @@ import requests
 import json
 from requests.auth import HTTPBasicAuth
 import os
+from urllib.parse import urljoin
+from timeit import default_timer as timer
+
+from edcSessionHelper import EDCSession
 
 
 def getFactValue(item, attrName):
@@ -306,6 +310,110 @@ def uploadResourceFileUsingSession(
         print("\t" + str(uploadResp))
         print("\t" + str(uploadResp.text))
         return uploadResp.status_code
+
+
+def updateResourcePasswordUsingSession(
+    edc_session: EDCSession,
+    resource_name: str,
+    new_password: str,
+    run_testconnect: bool,
+):
+    """
+    update the password for an EDC resource.
+    the process is simple:-
+    GET access/1/catalog/resources/{resourcE_name}
+        update password in resource json
+    PUT access/1/catalog/resources/{resource_name}
+
+    """
+    print(
+        f"\n\tstarting process to update edc resource: {resource_name}"
+        " with new password"
+    )
+
+    scanner_id = ""
+
+    # get the resource from EDC
+    # resourceUrl = f"{edcSession.baseUrl}/access/1/catalog/resources/"
+    rc, res_def = getResourceDefUsingSession(
+        edc_session.baseUrl, edc_session.session, resource_name
+    )
+    if rc != 200:
+        print(f"error reading resource, {rc} {res_def} skipping...")
+        return False
+
+    # update the password field - for source metadata scanner
+    for config in res_def["scannerConfigurations"]:
+        # check that we are editing a source scanner (not profiling)
+        scanner_type = config["scanner"]["providerTypeName"]
+        if scanner_type == "Source Metadata":
+            scanner_id = config["scanner"]["scannerId"]
+        # if scanner_type != "Source Metadata":
+        #     continue
+        for opt in config["configOptions"]:
+            optId = opt.get("optionId")
+            if optId == "Password" and scanner_type == "Source Metadata":
+                opt["optionValues"] = [new_password]
+                print("\t\tpassword replaced")
+            # if optId == "SourceEdrConnName" and scanner_type == "Data Discovery":
+            #     print(f"\t\tconnection name is {opt.get('optionValues')[0]}")
+
+    # save (PUT) the resource back
+    print(f"\tupdating resource {resource_name}")
+    rc = updateResourceDefUsingSession(
+        edc_session.baseUrl, edc_session.session, resource_name, res_def
+    )
+    if rc == 200:
+        print(f"resource {resource_name} successfully updated")
+        if run_testconnect:
+            print("running test connect...")
+            resource_test_connect(edc_session, resource_name, scanner_id)
+    # run a test connect????
+    # if not edc_resource_test_connect(res_def, resource_name, scanner_id):
+    #     # failed test connect, store the resource name
+    # return True
+
+    return rc
+
+
+def resource_test_connect(edc_session: EDCSession, resource_name, scanner_id) -> bool:
+
+    rc, res_def = getResourceDefUsingSession(
+        edc_session.baseUrl, edc_session.session, resource_name
+    )
+
+    apiURL = urljoin(
+        edc_session.baseUrl,
+        f"/access/1/catalog/resources/{resource_name}/testconnection",
+    )
+    # print("\turl=" + apiURL)
+    header = {"Accept": "application/json", "Content-Type": "application/json"}
+    print("\n\tstarting resource test connect")
+    start = timer()
+    tResp = edc_session.session.post(
+        apiURL,
+        params={"scannerid": scanner_id},
+        data=json.dumps(res_def),
+        headers=header,
+    )
+    end = timer()
+    print(f"\tresponse={tResp.status_code} in {end - start} seconds")
+    if tResp.status_code == 200:
+        # valid - return the jsom
+        print(f"\ttest connect succeeded:{tResp.status_code} {tResp.text}")
+        return True
+
+    # test connect failed... show first part of error message
+    chars_to_display = 1000
+    try:
+        # strip off all text after the first \n  (if it exists)
+        chars_to_display = tResp.text.index("\\n")
+    except ValueError:
+        # do nothing (if there is no \n character), use default length (120)
+        pass
+
+    print(f"\ttest connect failed: {tResp.text[:chars_to_display]}")
+    return False
 
 
 def uploadResourceFile(url, user, pWd, resourceName, fileName, fullPath, scannerId):

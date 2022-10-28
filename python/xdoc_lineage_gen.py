@@ -358,7 +358,7 @@ def get_exdocs_zip(
         try:
             resp = edcHelper.session.get(xdocurl, params=parms, timeout=20)
             if resp.status_code == 200:
-                logging.info("successfully downloaded xddoc file")
+                logging.info("successfully downloaded xdoc file")
                 with open(xdoc_filename, "wb") as outfile:
                     outfile.write(resp.content)
                     print(f"xdoc size={len(resp.content)}")
@@ -402,8 +402,13 @@ def process_xdocs_zipped(zipfileName: str, resourceName: str, outFolder: str):
                     f" {xdfile} size={info_list[pos].file_size/1024:,.0f} KB"
                 )
                 logging.info(f"processing xdoc file: {xdfile}")
-                data = json.loads(xdoc_file.read())
-                process_xdoc_json(data)
+                # error for very large xdoc files (3gb) - need to research
+                try:
+                    data = json.loads(xdoc_file.read())
+                    process_xdoc_json(data)
+                except Exception as e:
+                    print("error reading file.")
+                    print(e)
 
     # write results to file(s)
     write_xdoc_results(resourceName, outFolder)

@@ -115,6 +115,7 @@ Sample Programs in the Project
 
 * `setParentFilterValues.py` - use this script to update in bulk relational objects with a custom attribute containing the value of the schema the object belongs to. This will faceting by schema name in search results, as well as creating custom tab pointing to specific database schema within a resource, see [setParentFilterValues.md](setParentFilterValues.md) for more info
 * `update_resource_pwd.py` - command-line friendly way to update a resource password and optionally run a test connect.
+* `lineage_validator.py` - validate id-based custom lineage files.  checks to see if id's exist and if both left/right exist if link is stored in EDC.  will not validate connection assignment.  will handle case-insensitve resources with additional search if not a case-sensitive id match.  see [lineage_validator.md](lineage_validator.md).
 
 
 

@@ -1,4 +1,4 @@
-# Lineage Validator scrtipt
+# Lineage Validator script
 
 ## Purpose
 Validate EDC custom lineage file that uses direct-id method to link objects

@@ -160,14 +160,14 @@ def validate_lineage_file(lineage_filename: str):
                 logging.info(f"row {rowCount} from csv to validate is: {row}")
                 validated_row = validate_lineage_row(row)
 
-                if not validated_row[from_valid_header]:
+                if validated_row[from_valid_header] == "False":
                     error_count += 1
-                if not validated_row[to_valid_header]:
+                if validated_row[to_valid_header] == "False":
                     error_count += 1
 
                 if (
-                    not validated_row[from_valid_header]
-                    or not validated_row[to_valid_header]
+                    validated_row[from_valid_header] == "False"
+                    or validated_row[to_valid_header] == "False"
                 ):
                     rows_with_errors.append(rowCount)
                     logging.error(

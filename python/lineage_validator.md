@@ -8,6 +8,15 @@ we need to do this, because the EDC custom lineage resource type does not valida
 the links it is reading when object id's are used.  if an id (left/right or both) does not match, no error is reported
 in the scanner log & no lineage is generated for that row.
 
+## Release History
+- 2022-11-02 - Initial Version (ready for testing)
+- 2022-11-04 - minor update, compatible with python 3.6 and -lf flag set to optional (for --setup)
+
+## Comments/Suggestions/Errors to report
+
+Raise an issue on github: https://github.com/Informatica-EIC/REST-API-Samples/issues
+
+
 ## Output Created
 a new file is created, in the same location as the lineage csv file to check, with the suffix _validation.csv
 
@@ -17,7 +26,8 @@ additional columns added:-
 - `Link Exists` possible values: True/False/Unknown
 - `Comments`     - any comments to help troubleshoot - as mentioned in the [Possible output in message column](#possible-output-in-message-column) section
 
-Note:  Unknown will be returned if connection assignment is used
+
+> **Note:**<br>Unknown will be returned if connection assignment is  used for either the from/to object.  Lineage will not be validated for connection assignments
 
 ## Process
 for each from/to object reference

@@ -55,7 +55,7 @@ def setup_cmd_parser():
     parser.add_argument(
         "-lf",
         "--lineage_file",
-        required=True,
+        required=False,
         help=(
             "Lineage file to check - "
             "results written to same file with _validated.csv suffix"
@@ -283,8 +283,9 @@ def validate_lineage_row(row_to_validate: dict) -> dict:
     return row_to_validate
 
 
-def validate_edc_id(id: str, link_type: str) -> tuple[str, str, dict]:
+def validate_edc_id(id: str, link_type: str):
     # validate an id - if it exists return true
+    # removed returns -> tuple[str, str, dict] for python3.6
     resource_name = id.split("://")[0]
     is_casesensitive = is_resource_casesenitive(resource_name)
     is_valid = "False"

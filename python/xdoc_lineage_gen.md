@@ -92,7 +92,16 @@ viewing this in a tabular mode might be easier
 
 the process will store and try and execute every regex search/replace set of expressions
 
+the actual code used to replace the value uses python's re (regex) re.sub function
+```python
+re.sub(pattern, repl, string, count=0, flags=0)
+```
 
+see python documentation for more https://docs.python.org/3/library/re.html#re.sub
+
+for the replacement syntax, this extract from the python docs should be useful
+
+> In string-type repl arguments, in addition to the character escapes and backreferences described above, \g<name> will use the substring matched by the group named name, as defined by the (?P<name>...) syntax. \g<number> uses the corresponding group number; \g<2> is therefore equivalent to \2, but isn’t ambiguous in a replacement such as \g<2>0. \20 would be interpreted as a reference to group 20, not a reference to group 2 followed by the literal character '0'. The backreference \g<0> substitutes in the entire substring matched by the RE.
 ---
 
 ## Command-Line Syntax

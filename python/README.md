@@ -112,6 +112,7 @@ Sample Programs in the Project
       ```
   * supports command-line parameters and environment vars for accessing the catalog.
   * uses edcSessionHelper.py to get a session reference to any rest queries
+  * more details [xdoc_lineage_gen.md](xdoc_lineage_gen.md)
 
 * `setParentFilterValues.py` - use this script to update in bulk relational objects with a custom attribute containing the value of the schema the object belongs to. This will faceting by schema name in search results, as well as creating custom tab pointing to specific database schema within a resource, see [setParentFilterValues.md](setParentFilterValues.md) for more info
 * `update_resource_pwd.py` - command-line friendly way to update a resource password and optionally run a test connect.

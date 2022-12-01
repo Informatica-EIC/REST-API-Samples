@@ -334,11 +334,16 @@ def init_files(resourceName: str, outFolder: str):
     mem.connectionlinkWriter = csv.writer(mem.fConnLinks)
     mem.connectionlinkWriter.writerow(
         [
-            "association",
-            "fromObjectIdentity",
-            "toObjectIdentity",
-            "fromObjectConnectionName",
-            "toObjectConnectionName",
+            # "association",
+            # "fromObjectIdentity",
+            # "toObjectIdentity",
+            # "fromObjectConnectionName",
+            # "toObjectConnectionName",
+            "Association",
+            "From Connection",
+            "To Connection",
+            "From Object",
+            "To Object",
         ]
     )
 
@@ -492,8 +497,11 @@ def process_xdoc_links(data):
         toConn = links.get("toObjectConnectionName", "")
         assoc = links.get("association")
         props = links.get("properties")
+        from_ref_id = fromId
+        to_ref_id = toId
         if fromId.startswith("${"):
             fromConn = fromId[2 : fromId.rfind("}")]
+            from_ref_id = fromId[fromId.rfind("}") + 2 :]
             mem.connectables.add(fromId)
             mem.leftExternalCons += 1
             # thecount = mem.leftRightConnectionObjects.get(assoc, 0)
@@ -522,6 +530,8 @@ def process_xdoc_links(data):
 
         if toId.startswith("${"):
             toConn = toId[2 : toId.rfind("}")]
+            to_ref_id = toId[toId.rfind("}") + 2 :]
+
             mem.rightExternalCons += 1
             mem.connectables.add(toId)
             mem.leftRightConnectionObjects[assoc] = (
@@ -547,7 +557,7 @@ def process_xdoc_links(data):
         mem.alllinkWriter.writerow([assoc, fromId, toId, fromConn, toConn, props])
         if fromConn != "" or toConn != "":
             mem.connectionlinkWriter.writerow(
-                [assoc, fromId, toId, fromConn, toConn, props]
+                [assoc, fromConn, toConn, from_ref_id, to_ref_id]
             )
         if assoc in mem.assocCounts.keys():
             mem.assocCounts[assoc] = mem.assocCounts[assoc] + 1

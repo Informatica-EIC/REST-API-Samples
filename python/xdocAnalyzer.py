@@ -132,6 +132,9 @@ def main():
     if args.resourceType is None:
         print("we have a resource name - but no type - need to look it up")
         resourceType = getResourceType(resourceName, edcHelper.session)
+        if resourceType is None:
+            print("cannot get resourcetype, exiting")
+            return
     else:
         resourceType = args.resourceType
 
@@ -181,6 +184,8 @@ def getResourceType(resourceName, session) -> str:
     if resp.status_code == 200:
         resJson = resp.json()
         resourceType = resJson["scannerConfigurations"][0]["scanner"]["scannerId"]
+    else:
+        print(f"\terror getting resourceType for {resourceName}. {resp.text}")
 
     return resourceType
 

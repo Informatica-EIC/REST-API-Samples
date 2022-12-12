@@ -2,7 +2,7 @@
 Created November, 2022
 
 validate custom lineage files that use direct id's (not connection assignment)
-write results to a file that replicates the lineage file, with extra columns 
+write results to a file that replicates the lineage file, with extra columns
 identifying if the left/right objects are valid, if the link is already created
 and any messages
 
@@ -21,6 +21,7 @@ import logging
 import urllib3
 import time
 from datetime import datetime
+import re
 
 urllib3.disable_warnings()
 
@@ -31,6 +32,8 @@ from_valid_header = "From Valid"
 to_valid_header = "To Valid"
 comments_header = "Comments"
 link_exists_header = "Link Exists"
+
+ref_id_regex = r"([\w\-_]+)\$\$([\w\-_]+)\$\$([\w\-_\/]+):\/\/~proxy~\/([\w\-_\/]+)"
 
 if not os.path.exists("./log"):
     print("creating log folder ./log")
@@ -304,6 +307,7 @@ def validate_edc_id(id: str, link_type: str):
             "associations": link_type,
             "includeDstLinks": "true",
             "includeSrcLinks": "true",
+            "includeRefObjects": "true",
         },
         headers=header,
     )
@@ -351,6 +355,10 @@ def validate_edc_id(id: str, link_type: str):
                     "need to refine the search used for CIS match"
                 )
 
+    # if the id is a reference object - add a return message
+    if re.match(ref_id_regex, id):
+        message = message + "reference object id used. "
+
     return (is_valid, message, result)
 
 
@@ -360,7 +368,17 @@ def is_resource_casesenitive(resourceName: str) -> bool:
     this will change the way a match is found,
     if an id does not match if the case is not a match
     @todo:  move this to common edc functions
+    reference resources - default to True
     """
+
+    # regex pattern for a reference id
+    ref_id_regex = r"([\w\-_]+)\$\$([\w\-_]+)\$\$([\w\-_\/]+)"
+    if re.match(ref_id_regex, resourceName):
+        # print("\treference id found")
+        # add to resource map
+        resource_map[resourceName] = True
+        return True
+
     default_response = True
     # check the cache first
     if resourceName in resource_map:
@@ -373,6 +391,9 @@ def is_resource_casesenitive(resourceName: str) -> bool:
     )
     # print(resp.status_code)
     if resp.status_code != 200:
+        print(
+            f"error getting resource case-sensitivity: {resp.status_code} {resp.text}"
+        )
         return default_response
 
     # read the result, as json string

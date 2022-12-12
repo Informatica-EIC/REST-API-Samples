@@ -9,8 +9,9 @@ the links it is reading when object id's are used.  if an id (left/right or both
 in the scanner log & no lineage is generated for that row.
 
 ## Release History
-- 2022-11-02 - Initial Version (ready for testing)
+- 2022-12-12 - bugfix:  issue #40 - reference id's were not validated (always false)
 - 2022-11-04 - minor update, compatible with python 3.6 and -lf flag set to optional (for --setup)
+- 2022-11-02 - Initial Version (ready for testing)
 
 ## Comments/Suggestions/Errors to report
 
@@ -51,6 +52,7 @@ for each from/to object reference
 - left object uses connection assignment.
 - right object uses connection assignment.
 - object link does not exist in EDC - lineage should be imported again
+- fromId:reference object id used.  any time a reference id was used in lineage
 
 
 ## Implementation Notes

@@ -1,0 +1,60 @@
+{
+    "providerId": "DataDomainScanner",
+    "userId": "<user>",
+    "modifiedBy": "<user>",
+    "updates": [
+        {
+            "id": "<column_id>",
+            "objectClass": "",
+            "deleteDestinationLinks": [],
+            "deleteFacts": [],
+            "deleteSourceLinks": [
+                {
+                    "associationId": "com.infa.ldm.profiling.DataDomainColumnInferred",
+                    "objectId": "DataDomain://<domain>",
+                    "properties": [
+                        {
+                            "attrUuid": "core.targetAttribute",
+                            "value": "com.infa.ldm.profiling.DataDomainColumnInferred"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreationTime",
+                            "value": "<inf_timestamp>"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreatedBy",
+                            "value": "<user>"
+                        }
+                    ]
+                },
+                {
+                    "associationId": "com.infa.ldm.profiling.DataDomainColumnAll",
+                    "objectId": "DataDomain://<domain>",
+                    "properties": [
+                        {
+                            "attrUuid": "core.targetAttribute",
+                            "value": "com.infa.ldm.profiling.DataDomainColumnAll"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreationTime",
+                            "value": "<inf_timestamp>"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreatedBy",
+                            "value": "<user>"
+                        }
+                    ]
+                }
+            ],
+            "hideDestinationLinks": [],
+            "hideFacts": [],
+            "hideSourceLinks": [],
+            "newDestinationLinks": [],
+            "newFacts": [],
+            "newSourceLinks": [],
+            "unhideDestinationLinks": [],
+            "unhideFacts": [],
+            "unhideSourceLinks": []
+        }
+    ]
+}

@@ -50,6 +50,7 @@ class EDCSession:
         self.edcversion_str = ""
         self.edc_build_vers = ""
         self.edc_build_date = ""
+        self.userid = ""
 
     def __setup_standard_cmdargs__(self):
         # check for args overriding the env vars
@@ -217,6 +218,10 @@ class EDCSession:
         # session.headers.update({"Accept": "application/json"})
         self.session.verify = verify
         self.session.headers.update({"Authorization": auth})
+        # store the user name (from auth)
+        self.userid = (
+            base64.b64decode(auth.replace("Basic ", "")).decode("utf-8").split(":")[0]
+        )
         self.session.baseUrl = self.baseUrl
 
         print("\tfinished reading common env/.env/cmd parameters")

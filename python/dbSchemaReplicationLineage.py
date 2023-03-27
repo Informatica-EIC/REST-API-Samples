@@ -42,11 +42,11 @@ process:-
         and works native in v10.2.1+
 """
 
-import platform
 import argparse
 import json
-import requests
-from requests.auth import HTTPBasicAuth
+
+# import requests
+# from requests.auth import HTTPBasicAuth
 import urllib3
 import csv
 import edcutils
@@ -63,31 +63,62 @@ urllib3.disable_warnings()
 parser = argparse.ArgumentParser(parents=[edcHelper.argparser])
 # add args specific to this utility (left/right resource, schema, classtype...)
 parser.add_argument(
-    "-lr", "--leftresource", required=False, help="name of the left resource to find objects"
+    "-lr",
+    "--leftresource",
+    required=False,
+    help="name of the left resource to find objects",
 )
 parser.add_argument(
-    "-ls", "--leftschema", required=False, help="name of the left schema/container object"
+    "-ls",
+    "--leftschema",
+    required=False,
+    help="name of the left schema/container object",
 )
 parser.add_argument(
-    "-lt", "--lefttype", required=False, default="com.infa.ldm.relational.Schema", help="class type for the schema level object"
+    "-lt",
+    "--lefttype",
+    required=False,
+    default="com.infa.ldm.relational.Schema",
+    help="class type for the schema level object",
 )
 parser.add_argument(
-    "-rr", "--rightresource", required=False, help="name of the right resource to find objects"
+    "-rr",
+    "--rightresource",
+    required=False,
+    help="name of the right resource to find objects",
 )
 parser.add_argument(
-    "-rs", "--rightschema", required=False, help="name of the right schema/container object"
+    "-rs",
+    "--rightschema",
+    required=False,
+    help="name of the right schema/container object",
 )
 parser.add_argument(
-    "-rt", "--righttype", required=False, default="com.infa.ldm.relational.Schema", help="class type for the right schema level object"
+    "-rt",
+    "--righttype",
+    required=False,
+    default="com.infa.ldm.relational.Schema",
+    help="class type for the right schema level object",
 )
 parser.add_argument(
-    "-pfx", "--csvprefix", required=False, default="schemaLineage", help="prefix to use when creating the output csv file"
+    "-pfx",
+    "--csvprefix",
+    required=False,
+    default="schemaLineage",
+    help="prefix to use when creating the output csv file",
 )
 parser.add_argument(
-    "-rtp", "--righttableprefix", required=False, default="", help="table prefix for right datasets"
+    "-rtp",
+    "--righttableprefix",
+    required=False,
+    default="",
+    help="table prefix for right datasets",
 )
 parser.add_argument(
-    "-sub", "--substitute", required=False, help="characters to replace, from/to split by '/' and comma seperated for multiple substitutions - e.g. _a/_b,#/_h  replace any _a string to _b, and any # to _h in the columns to link"
+    "-sub",
+    "--substitute",
+    required=False,
+    help="characters to replace, from/to split by '/' and comma seperated for multiple substitutions - e.g. _a/_b,#/_h  replace any _a string to _b, and any # to _h in the columns to link",
 )
 parser.add_argument(
     "-o",
@@ -119,11 +150,11 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
     print("\tgetSchemaContents for:" + schemaName + " resource=" + resourceName)
     # schemaDict returned  key=TABLE.COLUMN value=column id
     schemaDict = {}
-    tableNames = {}
 
     # url = catalogServer + "/access/2/catalog/data/objects"
     url = edcHelper.baseUrl + "/access/2/catalog/data/objects"
-    query = (f'+core.resourceName:"{resourceName}"'
+    query = (
+        f'+core.resourceName:"{resourceName}"'
         + f' +core.classType:"{schemaType}"'
         + f' +core.name:"{schemaName}"'
     )
@@ -141,9 +172,7 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
     if rc != 200:
         print("error reading object: rc=" + str(rc) + " response:" + str(response.json))
         if rc == 401:
-            print(
-                "\t401:Possible Missing/bad credentials"
-            )
+            print("\t401:Possible Missing/bad credentials")
             print(str(response))
         return
 
@@ -159,9 +188,18 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
         # check to see if schemaName found is an exact match
         # (for situations where there are other schemas with the same prefix)
         # e.g. search for "PUBLIC" will also return "PUBLIC_TEST"
-        print("\tfound schema: " + schemaNameFound + " id=" + schemaId + " type=" + schemaType)
+        print(
+            "\tfound schema: "
+            + schemaNameFound
+            + " id="
+            + schemaId
+            + " type="
+            + schemaType
+        )
         if schemaNameFound != schemaName:
-            print(f"schema {schemaNameFound} does not exactly match {schemaName}, skipping")
+            print(
+                f"schema {schemaNameFound} does not exactly match {schemaName}, skipping"
+            )
             continue
 
         lineageURL = edcHelper.baseUrl + "/access/2/catalog/data/relationships"
@@ -170,7 +208,9 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
         # set the depth to >2
         if schemaType == "com.infa.ldm.relational.SAPHanaPackage":
             depth = 10
-            print(f"\tNote:  SAP Hana Package used for datasource (schema)\n\t\tsetting depth={depth} for relationships query")
+            print(
+                f"\tNote:  SAP Hana Package used for datasource (schema)\n\t\tsetting depth={depth} for relationships query"
+            )
         lineageParms = {
             "seed": schemaId,
             "association": "core.ParentChild",
@@ -180,9 +220,6 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
             "includeTerms": "false",
             "removeDuplicateAggregateLinks": "false",
         }
-
-
-
 
         print(
             "\tGET child rels for schema: " + lineageURL + " parms=" + str(lineageParms)
@@ -200,9 +237,7 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
                 f" response:{response.json}"
             )
             if rc == 401:
-                print(
-                    "\t401:Possible Missing/bad credentials"
-                )
+                print("\t401:Possible Missing/bad credentials")
                 print(str(response))
             return
 
@@ -215,8 +250,6 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
         relsJson = json.loads(lineageJson)
         # print(len(relsJson))
 
-
-
         for lineageItem in relsJson["items"]:
             # print('\t\t' + str(lineageItem))
             inId = lineageItem.get("inId")
@@ -227,10 +260,12 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
             assocId = lineageItem.get("associationId")
             # print("\t\t" + inId + " assoc=" + assocId)
             # if assocId=='com.infa.ldm.relational.SchemaTable':
-            if (assocId.endswith(".SchemaTable")
-               or assocId == "com.infa.adapter.snowflake.PackageFlatRecord_table"
-               or assocId == "com.infa.ldm.relational.SAPHanaPackageCalculationView"
-               or assocId == "core.DataSourceDataSets"):
+            if (
+                assocId.endswith(".SchemaTable")
+                or assocId == "com.infa.adapter.snowflake.PackageFlatRecord_table"
+                or assocId == "com.infa.ldm.relational.SAPHanaPackageCalculationView"
+                or assocId == "core.DataSourceDataSets"
+            ):
                 # note - custom lineage does not need table and column
                 # count the tables & store table names
                 tableCount += 1
@@ -243,11 +278,13 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
                 # tableNames[inId] = tableName
                 # schemaDict[tableName] = inId
             # if assocId=='com.infa.ldm.relational.TableColumn':
-            if (assocId.endswith(".TableColumn")
-               or assocId.endswith(".TablePrimaryKeyColumn")
-               or assocId == "com.infa.adapter.snowflake.FlatRecord_tableField"
-               or assocId == "com.infa.ldm.relational.CalculationViewAttribute"
-               or assocId.startswith("com.infa.ldm.mdm.")):
+            if (
+                assocId.endswith(".TableColumn")
+                or assocId.endswith(".TablePrimaryKeyColumn")
+                or assocId == "com.infa.adapter.snowflake.FlatRecord_tableField"
+                or assocId == "com.infa.ldm.relational.CalculationViewAttribute"
+                or assocId.startswith("com.infa.ldm.mdm.")
+            ):
                 # columnName = inId.split('/')[-1]
                 columnCount += 1
                 columnName = edcutils.getFactValue(
@@ -276,7 +313,7 @@ def getSchemaContents(schemaName, schemaType, resourceName, substitute_chars):
     return schemaDict, schemaId
 
 
-def substitute_name(from_name:str, subst:str) -> str:
+def substitute_name(from_name: str, subst: str) -> str:
     # split the substituions by ,
     new_str = from_name
     if subst is None:
@@ -291,7 +328,9 @@ def substitute_name(from_name:str, subst:str) -> str:
         if from_str in from_name:
             to_str = subst_instance.strip().split("/")[1]
             new_str = from_name.replace(from_str, to_str)
-            print(f"substituting {from_str} with {to_str} in {from_name} - new value is {new_str}")
+            print(
+                f"substituting {from_str} with {to_str} in {from_name} - new value is {new_str}"
+            )
     return new_str
 
 

@@ -214,7 +214,7 @@ def main():
                 os.makedirs(csvFilePath)
 
     mem.outputCsvFile = csvFilePath + "/" + csvFileName
-    print(f"\t\toutput excel file=True")
+    print("\t\toutput excel file=True")
     print(f"\t\toutput csv files={args.writeToCSV}")
     mem.outputExcelFile = csvFilePath + "/" + excelFileName
 
@@ -263,7 +263,7 @@ def main():
     # print to csv file
     print(f"domains used: {len(mem.domainData)}")
     if args.writeToCSV:
-        printDomainSummaryToCsv(f"out/domainSummary.csv", mem.domainData)
+        printDomainSummaryToCsv("out/domainSummary.csv", mem.domainData)
     # if args.writeToExcel:
     setupExcelWorkbook(csvFilePath, "datadomain_summary.xlsx")
     printDomainSumarytoExcelWorksheet(mem.wb, "all domains", mem.domainData)

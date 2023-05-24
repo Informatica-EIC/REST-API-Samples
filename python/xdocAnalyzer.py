@@ -392,7 +392,10 @@ def write_xdoc_results(resourceName: str, outFolder: str):
     # pp.pprint(connectables)
     with open(outFolder + "/" + resourceName + "_connectables.txt", "w") as out_file:
         for value in sorted(mem.connectables):
-            out_file.write(f"{value}\n")
+            try:
+                out_file.write(f"{value}\n")
+            except Exception as e:
+                print("error writing to file")
 
     pp = pprint.PrettyPrinter(depth=6)
     print("\nconnection assignment link counts:")
@@ -401,7 +404,10 @@ def write_xdoc_results(resourceName: str, outFolder: str):
         outFolder + "/" + resourceName + "_connection_assignment_link_counts.csv", "w"
     ) as out_file:
         for key, val in mem.connectionInstances.items():
-            out_file.write(f"{key},{val}\n")
+            try:
+                out_file.write(f"{key},{val}\n")
+            except Exception as e:
+                print("error writing dict value")
         # json.dump(mem.connectionInstances, json_file, indent=4, cls=JsonSetEncoder)
 
     print("\nconnection stats")

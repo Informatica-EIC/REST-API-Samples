@@ -1,14 +1,17 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.infa.eic.sample</groupId>
     <artifactId>edc_utils</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1-SNAPSHOT</version>
 
     <dependencies>
-        <!-- you will need to add client.jar to your local maven repository
+        <!-- you will need to add ccd ..
+        lient.jar to your local maven repository
         e.g. after downloading client.jar
-        mvn install:install-file -Dfile=client.jar -DgroupId=com.infa.products.ldm.core.rest.v2.client -DartifactId=EDC-Rest-Client -Dversion=10.5.0.1 -Dpackaging=jar
+        mvn install:install-file -Dfile=client.jar -DgroupId=com.infa.products.ldm.core.rest.v2.client
+        -DartifactId=EDC-Rest-Client -Dversion=10.5.0.1 -Dpackaging=jar
         -->
         <!-- <dependency>
             <groupId>com.infa.products.ldm.core.rest.v2.client</groupId>
@@ -23,7 +26,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>1.9</version>
+            <version>1.10.0</version>
         </dependency>
         <dependency>
             <groupId>com.opencsv</groupId>

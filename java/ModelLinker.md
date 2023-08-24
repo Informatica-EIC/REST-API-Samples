@@ -21,12 +21,13 @@ settings
    example:-
    ```
 	core.classType:(com.infa.ldm.erwin.TableEntity \
-                           or com.infa.ldm.erwin.Entity \
-                           or com.infa.ldm.erwin.Table \
-                           or com.infa.ldm.extended.sappowerdesigner.Entity \
-                           or com.infa.ldm.extended.sappowerdesigner.Table) \
+                           OR com.infa.ldm.erwin.Entity \
+                           OR com.infa.ldm.erwin.Table \
+                           OR com.infa.ldm.extended.sappowerdesigner.Entity \
+                           OR com.infa.ldm.extended.sappowerdesigner.Table) \
     AND  core.resourceName:acme_erwin
 	```
+- `modelLinker.entityFQ` apply a query filter to the entityQuery, example: to filter based on resource name.   Recent testing shows this works better than trying to add a resourceName filter to the entityQuery.  example: `core.resourceName:acme_erwin`
 - `modelLinker.entityToAttrLink` comma seperated list of links used for Entity|Table to attribute/pk 
 - `modelLinker.physicalNameAttr` comma seperated list of attribute id's to use to find the physical name (default for erwin & powerdesigner is)
    `com.infa.ldm.erwin.PhysicalName,com.infa.ldm.extended.sappowerdesigner.PhysicalName`
@@ -40,22 +41,22 @@ settings
    - note:  if only using custom lineage, you should not need to set this to true, unless you want to write directly via API call
 - `modelLinker.deleteLinks` - delete links, if they were created by setting testOnly to false (cleanup links) for testing the process
    - note: - if only using custom lineage- you should never need to deleteLinks
-- `modelLinker.attributePropagation` - boolean flag to enable attribute propagation (copies attributes from model to dbms object)  value=true|false
+- `modelLinker.attributePropagation` - boolean flag to enable attribute propagation (copies attributes from model to dbms object)  value=true|false.   
+    - note:  Setting this to true can propagate attributes without actually linking them (e.g. if testOnly=false)
 - `modelLinker.attributesToPropagate` - list of attributes to propagate.  comma separated for each column paring and : seperated for the from/to attribute.
-    - e.g. `modelLinker.attributesToPropagate=core.name:com.infa.ldm.ootb.enrichments.displayName,`
+    - e.g. `modelLinker.attributesToPropagate=core.name:com.infa.ldm.ootb.enrichments.displayName,com.infa.ldm.erwin.Definition:com.infa.ldm.ootb.enrichments.businessDescription`
 
 
 ## downloading executable version of this utility
 
-if you do not want to compile/run from source - an executable version of this utility is available for download.
-
-- from linux:  `wget -O model_linker.zip.zip https://storage.googleapis.com/edc/model_linker.zip` 
-- or download directly from <https://storage.googleapis.com/edc/model_linker.zip>
-  - unzip model_linker.zip
-  - chmod +x *.sh
+if you do not want to compile/run from source - an executable version of this utility is available for download from the informatica TSFTP server
+- location: /updates/Catalog_Solutions/utilities folder
+- file: edc_catalog_utils_java_{version}.zip, unzip to any folder (requires Java)
   
 to run the utility:-
-- edit.properties to suit your environment (connection settings `rest_service`,`user`, `password` - if password is empty, you will be prompted)
+- unzip the catalog utils package
+- edit (or copy to new file and edit) the .properties file to suit your environment (connection settings `rest_service`,`user`, `password` - if password is empty, you will be prompted)
+- if you catalog services uses certificates, modify modelLinker.cmd/modelLinker.sh to reference your truststore (e.g. infa_truststore.jks)
 - `./modelLinker.sh catalog_utils.properties`
 - Model Linker properties are set after the header
 

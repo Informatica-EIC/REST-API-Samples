@@ -37,12 +37,13 @@ import com.infa.products.ldm.core.rest.v2.client.utils.ObjectAdapter;
  *
  */
 public class ModelLinker {
-	public static final String version = "1.2";
+	public static final String version = "1.3";
 
 	String url = "";
 	String user = "";
 	String pwd = "";
 	String entityQuery = "";
+	String entityFQ = "";
 	String tableQuery = "";
 	String physNameAttr = "";
 	String entityAttrLink = "";
@@ -133,6 +134,7 @@ public class ModelLinker {
 			// model linker properties
 
 			entityQuery = prop.getProperty("modelLinker.entityQuery");
+			entityFQ = prop.getProperty("modelLinker.entityFQ");
 			tableQuery = prop.getProperty("modelLinker.tableQuery");
 			physNameAttr = prop.getProperty("modelLinker.physicalNameAttr");
 			physNameAttrs = new ArrayList<String>(Arrays.asList(physNameAttr.split(",")));
@@ -145,7 +147,6 @@ public class ModelLinker {
 
 			useOwnerSchema = Boolean.parseBoolean(prop.getProperty("modelLinker.useOwnerSchema", "false"));
 			ownerSchemaAttr = prop.getProperty("modelLinker.ownerSchemaAttr", "");
-
 
 			entityLinkType = prop.getProperty("modelLinker.entityLinkType", "core.DataSetDataFlow");
 			attributeLinkType = prop.getProperty("modelLinker.attributeLinkType", "core.DirectionalDataFlow");
@@ -190,6 +191,7 @@ public class ModelLinker {
 
 		System.out.println("     EDC rest url: " + url);
 		System.out.println("      entityQuery: " + entityQuery);
+		System.out.println("      entity FQ: " + entityFQ);
 		System.out.println("       tableQuery: " + tableQuery);
 		System.out.println("     physNameAttr: " + physNameAttr);
 		System.out.println("    physNameAttrs: " + physNameAttrs);
@@ -229,7 +231,7 @@ public class ModelLinker {
 			logWriter.println("        test mode: " + testOnly);
 			logWriter.println(" attr Propagation: " + doAttributePropagation);
 			logWriter.println("    attrs to copy: " + attrPropMap);
-	
+
 			logWriter.flush();
 
 			System.out.println("\tinitializing lineageFile:" + lineageFile);
@@ -291,7 +293,14 @@ public class ModelLinker {
 				// response=APIUtils.READER.catalogDataObjectsGet(entityQuery, null, offset,
 				// pageSize, null, null);
 				// EDC (client.jar) 10.2.2hf1+ (works and returns same values)
-				ObjectsResponse response = APIUtils.CATALOG_API.catalogDataObjectsGet(entityQuery, null, null, offset,
+
+				// need to add an FQ
+				// List<String> fq_array = Arrays.asList(entityFQ);
+				ArrayList<String> fq_array = new ArrayList<String>();
+				fq_array.add(entityFQ);
+
+				ObjectsResponse response = APIUtils.CATALOG_API.catalogDataObjectsGet(entityQuery, fq_array, null,
+						offset,
 						pageSize, null, null, null, null, true, true, null, null);
 
 				total = response.getMetadata().getTotalCount().intValue();
@@ -328,23 +337,28 @@ public class ModelLinker {
 					}
 					// find the corresponding table
 
-					// assume only a small set of tables could be returned
-					String findTables = tableQuery + " AND core.name_lc_exact:\"" + physicalName + "\"";
+					// assume only a small set of tables could be returned (name_lc_exact is no
+					// longer used)
+					// String findTables = tableQuery + " AND core.name_lc_exact:\"" + physicalName
+					// + "\"";
 
 					// Note: since v 10.4.x you cannot use core.name_lc_exact
 
 					// 10.22hf1+
-					findTables = tableQuery + " +core.name:\"" + physicalName + "\"";
+					String findTables = tableQuery + " +core.name:\"" + physicalName + "\"";
 					if (useOwnerSchema) {
 						String entitySchema = APIUtils.getValue(or, ownerSchemaAttr);
 						System.out.println("Owner Schema is: " + entitySchema);
 						logWriter.println("Owner Schema is: " + entitySchema);
 						if (entitySchema != null) {
 							// assume case insensitive autoSuggestMatchId
-							findTables = tableQuery + " +core.autoSuggestMatchId:/" + entitySchema.toUpperCase() + "/" + physicalName.toUpperCase();
+							findTables = tableQuery + " +core.autoSuggestMatchId:/" + entitySchema.toUpperCase() + "/"
+									+ physicalName.toUpperCase();
 						} else {
-							System.out.println("owner schema in model is null - cannot be used to find table " + physicalName);
-							logWriter.println("owner schema in model is null - cannot be used to find table " + physicalName);
+							System.out.println(
+									"owner schema in model is null - cannot be used to find table " + physicalName);
+							logWriter.println(
+									"owner schema in model is null - cannot be used to find table " + physicalName);
 						}
 					}
 					System.out.println("\tfinding table (exact name match): " + findTables);
@@ -535,7 +549,7 @@ public class ModelLinker {
 										"\t\t\tlinking objects... " + fromId + " -->> " + tabColLink.getInId());
 								addDatasetLink(fromId, tabColLink.getInId(), attributeLinkType, deleteLinks);
 								lineageWriter.println(
-									attributeLinkType + ",,," + fromId + "," + tabColLink.getInId());
+										attributeLinkType + ",,," + fromId + "," + tabColLink.getInId());
 								elementLineageLinks++;
 
 								lineageWriter.flush();
@@ -604,7 +618,8 @@ public class ModelLinker {
 		// try {
 		System.out.println("finished... ");
 		System.out.println("\tlineage links total=" + (datasetLineageLinks + elementLineageLinks)
-				+ " " + entityLinkType + "=" + datasetLineageLinks + " " + attributeLinkType + "=" + elementLineageLinks);
+				+ " " + entityLinkType + "=" + datasetLineageLinks + " " + attributeLinkType + "="
+				+ elementLineageLinks);
 		System.out.println("\t  objects to update=" + objectsToUpdate);
 		System.out.println("\t    objects updated=" + objectsUpdated);
 		System.out.println("\tlinks written via API=" + totalLinks + " links skipped(existing)=" + existingLinks
@@ -613,7 +628,8 @@ public class ModelLinker {
 
 		logWriter.println("finished... ");
 		logWriter.println("\tlineage links total=" + (datasetLineageLinks + elementLineageLinks)
-				+ " " + entityLinkType + "=" + datasetLineageLinks + " " + attributeLinkType + "=" + elementLineageLinks);
+				+ " " + entityLinkType + "=" + datasetLineageLinks + " " + attributeLinkType + "="
+				+ elementLineageLinks);
 		logWriter.println("\t  objects to update=" + objectsToUpdate);
 		logWriter.println("\t    objects updated=" + objectsUpdated);
 		logWriter.println("\tlinks written via API=" + totalLinks + " links skipped(existing)=" + existingLinks
@@ -881,9 +897,11 @@ public class ModelLinker {
 			// null);
 
 			// EDC 10.4+
-			// catalogDataObjectsGet(q, fq, id, offset, pageSize, sort, relatedId, cursor, associations,includeSrcLinks, includeDstLinks, shards, false);
-			ObjectsResponse response = APIUtils.CATALOG_API.catalogDataObjectsGet(null, null ,new ArrayList<String>(Arrays.asList(objectId)), 0, 10, null, null, null, null, true, true,null, null);
-
+			// catalogDataObjectsGet(q, fq, id, offset, pageSize, sort, relatedId, cursor,
+			// associations,includeSrcLinks, includeDstLinks, shards, false);
+			ObjectsResponse response = APIUtils.CATALOG_API.catalogDataObjectsGet(null, null,
+					new ArrayList<String>(Arrays.asList(objectId)), 0, 10, null, null, null, null, true, true, null,
+					null);
 
 			total = response.getMetadata().getTotalCount().intValue();
 			offset += pageSize;
@@ -920,7 +938,7 @@ public class ModelLinker {
 					updateSucceeded = true;
 					System.out.println("\t\t\tupdate completed successfully. " + newor.getId());
 					logWriter.println("\t\t\tupdate completed successfully. " + newor.getId());
-					
+
 					// System.out.println(or.getId()+":"+newor);
 				} catch (ApiException e) {
 					System.out.println("ERROR: update failed: " + e.getMessage());

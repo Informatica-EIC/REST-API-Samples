@@ -1,3 +1,6 @@
 requests
 openpyxl
 python-dotenv
+# for pyinstaller (remove if not using)
+urllib3==1.26.15
+chardet

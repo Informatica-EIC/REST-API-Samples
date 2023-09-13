@@ -112,11 +112,11 @@ there are 3 columns returned from the lookup that are linked to the final target
 
 <img src="img/m_order_with_customer.png">
 
-dataset level, - showing (correct) dataflow links, no controlflows
+dataset level, - showing (correct) dataflow links, no controlflows - (before runing controlflow script)
 
 <img src="img/customer_order_details_dataset_level_before.png">
 
-element level - showing (correct) dataflow links, no controlflows
+element level - showing (correct) dataflow links, no controlflows  (before runing controlflow script)
 
 <img src="img/customer_order_details_dataelement_level_before.png">
 
@@ -130,3 +130,103 @@ after script execution, showing the 2 control fields, with control flow lineage 
 
 <img src="img/customer_order_details_dataelement_level_with_controlflow.png">
 
+Example - command-line output
+
+from the example above, the following command-line was used (removed some console output details for shorter display)
+
+```
+./bdm_scanner_ctrlflow_gen -rn BDM_Scanner_pmr_4789 --edcimport
+BDM Scanner control flow lineage generator: version 1.0 starting
+using Python version: 3.9.2
+        reading common env/env file/cmd settings
+ready to check .env file .env
+                loading from .env file .env
+                read edc url from .env value=https://asvdwsndboxrh01.informatica.com:9085
+                replacing edc url with value from .env
+                replacing edc auth with INFA_EDC_AUTH value from .env
+        finished reading common env/.env/cmd parameters
+validating connection to https://asvdwsndboxrh01.informatica.com:9085
+        api status code=200
+EDC version: 10.5.4.1 ## 105410
+command-line args parsed = Namespace(edcurl=None, envfile='.env', auth=None, user=None, sslcert=None, resourceName='BDM_Scanner_pmr_4789', outDir='./out', edcimport=True, setup=False)
+
+output folder=./out
+import to EDC: True
+ready to find mappings that have lookups..
+calling:  #https://asvdwsndboxrh01.informatica.com:9085/access/2/catalog/data/objects#
+found: 3 mappings to inspect
+
+processing mapping: 1 of 3 - BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/Application_Lookup/Mapping/Lookup
+        lookup found: Lookup_COUNTRIES
+        reading lookup details id=BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/Application_Lookup/Mapping/Lookup/LookUpTransformation/Lookup_COUNTRIES
+        lookup condition=COUNTRY_CODE = World_City_Code
+        lookup statements found = 1
+        getting lookup fields (via group)
+        lookup group obj has 4 fields
+        4 lookup fields found: dict_keys(['WORLD_REGION_CODE', 'COUNTRY_ADESC', 'World_City_Code', 'COUNTRY_CODE'])
+        analyzing lookup statements: 1
+        fields compared = ['COUNTRY_CODE', 'World_City_Code']
+        lookup left: BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/Application_Lookup/Mapping/Lookup/LookUpTransformation/Lookup_COUNTRIES/Group/Group/Field/COUNTRY_CODE
+        lookup rght: BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/Application_Lookup/Mapping/Lookup/LookUpTransformation/Lookup_COUNTRIES/Group/Group/Field/World_City_Code
+                all fields downstream lineage: size=2
+        lineage generated.... 1/2/2/0/
+         left field - upstream  :: ['BDM_Scanner_pmr_4789$$BDMScanner$$DIDQ_STOCK1://~proxy~/COUNTRIES/COUNTRY_CODE']
+        right field - upstream  :: ['BDM_Scanner_pmr_4789$$BDMScanner$$DIDQ_STOCK1://~proxy~/PERSON_MASTER/NAT_CODE']
+all ds lineage size=1
+['BDM_Scanner_pmr_4789$$BDMScanner$$DIDQ_STOCK1://~proxy~/FACT_PERSON/COUNTRY_CODE']
+        downstream fields to link:: ['BDM_Scanner_pmr_4789$$BDMScanner$$DIDQ_STOCK1://~proxy~/FACT_PERSON/COUNTRY_CODE']
+        control flow/lineage links created: 4
+
+processing mapping: 2 of 3 - BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/app_lookup_test/Mapping/m_order_with_customer_2_srcid_not_mapped
+        ...
+
+processing mapping: 3 of 3 - BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/app_lookup_test/Mapping/m_order_with_customer
+        lookup found: Lookup_Customers_for_lookup
+        reading lookup details id=BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/app_lookup_test/Mapping/m_order_with_customer/LookUpTransformation/Lookup_Customers_for_lookup
+        lookup condition=CustomerID = CustomerID_from_order
+        lookup statements found = 1
+        getting lookup fields (via group)
+        lookup group obj has 31 fields
+        31 lookup fields found: dict_keys(['BillToCustomerID', 'PostalAddressLine2', 'DeliveryAddressLine2', 'LastEditedBy', 'PrimaryContactPersonID', 'PhoneNumber', 'AccountOpenedDate', 'CustomerID', 'RunPosition', 'ValidTo', 'CreditLimit', 'FaxNumber', 'CustomerID_from_order', 'IsOnCreditHold', 'DeliveryPostalCode', 'DeliveryRun', 'DeliveryCityID', 'IsStatementSent', 'CustomerName', 'PostalPostalCode', 'BuyingGroupID', 'PostalCityID', 'PostalAddressLine1', 'CustomerCategoryID', 'AlternateContactPersonID', 'StandardDiscountPercentage', 'PaymentDays', 'DeliveryMethodID', 'WebsiteURL', 'ValidFrom', 'DeliveryAddressLine1'])
+        analyzing lookup statements: 1
+        fields compared = ['CustomerID', 'CustomerID_from_order']
+        lookup left: BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/app_lookup_test/Mapping/m_order_with_customer/LookUpTransformation/Lookup_Customers_for_lookup/Group/Group/Field/CustomerID
+        lookup rght: BDM_Scanner_pmr_4789://BDM_Scanner_pmr_4789/Application/app_lookup_test/Mapping/m_order_with_customer/LookUpTransformation/Lookup_Customers_for_lookup/Group/Group/Field/CustomerID_from_order
+                all fields downstream lineage: size=6
+        lineage generated.... 1/2/2/2/
+         left field - upstream  :: ['WideWorldImporters_SQLServer://WideWorldImporters/Sales/Customers/CustomerID']
+        right field - upstream  :: ['WideWorldImporters_SQLServer://WideWorldImporters/Sales/Orders/CustomerID']
+all ds lineage size=3
+['SQLServer_TestDB://TestDB/dbo/customer_order_dates/CustomerID', 'SQLServer_TestDB://TestDB/dbo/customer_order_dates/CustomerID_from_order', 'SQLServer_TestDB://TestDB/dbo/customer_order_dates/CustomerName']
+        downstream fields to link:: ['SQLServer_TestDB://TestDB/dbo/customer_order_dates/CustomerID', 'SQLServer_TestDB://TestDB/dbo/customer_order_dates/CustomerID_from_order', 'SQLServer_TestDB://TestDB/dbo/customer_order_dates/CustomerName']
+        control flow/lineage links created: 6
+finishing...
+lineage file written: ./out/BDM_Scanner_pmr_4789_controlflow_lineage.csv
+Mappings processed: 3
+Lookups processed: 3
+element lineage links written: 16
+dataset lineage links written: 4
+run time = 3.265390157699585 seconds ---
+ready to create/update lineage resource... BDM_Scanner_pmr_4789_controlflow_lineage from ./out/BDM_Scanner_pmr_4789_controlflow_lineage.csv BDM_Scanner_pmr_4789_controlflow_lineage.csv
+getting resource for catalog:-https://asvdwsndboxrh01.informatica.com:9085 resource=BDM_Scanner_pmr_4789_controlflow_lineage
+        response=400
+        need to create resource: BDM_Scanner_pmr_4789_controlflow_lineage
+        creating resource: BDM_Scanner_pmr_4789_controlflow_lineage
+        rc=200
+uploading file ./out/BDM_Scanner_pmr_4789_controlflow_lineage.csv to resource: BDM_Scanner_pmr_4789_controlflow_lineage
+uploading file for resource https://asvdwsndboxrh01.informatica.com:9085 resource=BDM_Scanner_pmr_4789_controlflow_lineage
+        url=https://asvdwsndboxrh01.informatica.com:9085/access/1/catalog/resources/BDM_Scanner_pmr_4789_controlflow_lineage/files
+        {'scannerid': 'LineageScanner', 'filename': 'BDM_Scanner_pmr_4789_controlflow_lineage.csv', 'optionid': 'File'}
+        {'file': ('BDM_Scanner_pmr_4789_controlflow_lineage.csv', <_io.TextIOWrapper name='./out/BDM_Scanner_pmr_4789_controlflow_lineage.csv' mode='rt' encoding='UTF-8'>, 'text/csv')}
+        response=200
+starting resource load: BDM_Scanner_pmr_4789_controlflow_lineage
+starting scan resource https://asvdwsndboxrh01.informatica.com:9085 resource=BDM_Scanner_pmr_4789_controlflow_lineage
+        url=https://asvdwsndboxrh01.informatica.com:9085/access/2/catalog/resources/jobs/loads
+        {'accept': 'application/json', 'Content-Type': 'application/json'}
+        {'resourceName': 'BDM_Scanner_pmr_4789_controlflow_lineage'}
+        response=200
+        Job Queued: 51362990-308d-430b-9794-f4f8e5f2b112
+        Job def: {'resourceName': 'BDM_Scanner_pmr_4789_controlflow_lineage', 'jobId': '51362990-308d-430b-9794-f4f8e5f2b112', 'status': 'QUEUED', 'jobType': 'SCAN_JOB', 'startTime': 0, 'endTime': 0, 'jobHref': '/2/catalog/resources/jobs/loads/51362990-308d-430b-9794-f4f8e5f2b112'}
+process complete
+
+```

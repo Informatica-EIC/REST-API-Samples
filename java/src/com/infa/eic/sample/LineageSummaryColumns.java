@@ -56,11 +56,11 @@ public class LineageSummaryColumns {
 
 		// read command line args
 		// String user="Informatica_LDAP_AWS_Users\\dwrigley";
-		String user = "Administrator";
-		String pwd = "Administrator";
-		String url = "http://napslxapp01:9085/access/2";
-		String outFolder = "c:\\data\\wtf\\";
-		String resourceName = "<all>";
+		String user = "";
+		String pwd = "";
+		String url = "";
+		String outFolder = "./out";
+		String resourceName = "";
 		String fileNamePrefix = "";
 		String edcQuery = "";
 		boolean includeRefObjects = true;
@@ -247,7 +247,6 @@ public class LineageSummaryColumns {
 				qTime = System.currentTimeMillis() - qStart;
 				// get the total objects count (1 time only? if offset==0?)
 				total = response.getMetadata().getTotalCount().intValue();
-
 				// for next call... increment the offset (move to end of method?)
 				offset += pageSize;
 
@@ -474,6 +473,7 @@ public class LineageSummaryColumns {
 				} // iterator - items in the returned 'page'
 
 			} catch (ApiException e) {
+				System.out.println("Error found... " + e.getMessage());
 				e.printStackTrace();
 			}
 
@@ -482,7 +482,12 @@ public class LineageSummaryColumns {
 			// longer than others
 			// - it is all to do with the # src/dst links (more testing/understanding needed
 			// here)
-			float percentage = (currentPage * 100 / expectedPages);
+			float percentage = 0;
+			try {
+				percentage = (currentPage * 100 / expectedPages);
+			} catch (java.lang.ArithmeticException ex) {
+				System.out.println("error:  " + ex.getLocalizedMessage());
+			}
 			System.out.println(" obj:" + (offset - pageSize + 1) + "-" + offset + "/" + total + " progress:"
 					+ percentage + "%" + " linkCount=" + linkCount + " qTime=" + (qTime / 1000) + "sec ptime="
 					+ (System.currentTimeMillis() - qStart - qTime) + "ms" + " facts: " + pageFacts + " srcLinks:"

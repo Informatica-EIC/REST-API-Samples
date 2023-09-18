@@ -65,6 +65,7 @@ class mem:
     field_ctlflow_links = 0
     dset_unique_links = set()
     error_count = 0
+    max_hops = 20
 
 
 class lineage_inspector:
@@ -185,6 +186,12 @@ class lineage_inspector:
             # only process if the id matches the seed
             # since other lineage could be included
             if in_id == seed_id:
+                # error - if this is a recursive link (to self, skip)
+                if in_id == out_id:
+                    # print(f"skipping recursive link: {in_id}")
+                    logging.info(f"skipping recursive link: {in_id}")
+                    continue
+
                 # print(f"seed match - entry {iterations} ")
                 # recursively call this function again???
                 class_type = self.classtypes.get(out_id)
@@ -231,7 +238,7 @@ class lineage_inspector:
         # likely a sequence generator that does not link to a source
         # report error and return
         if self.recursion_level > len(lineage_result["items"]):
-            logging.warn(
+            logging.warning(
                 f"recursion warning: recursion leve {self.recursion_level}"
                 f" >= # of objects.  lineage={lineage_result}"
             )
@@ -252,6 +259,9 @@ class lineage_inspector:
             # only process if the id matches the seed
             # since other lineage could be included
             if out_id == seed_id:
+                if in_id == out_id:
+                    logging.info(f"skipping recursive link: {in_id}")
+                    continue
                 # print(f"seed match - entry {iterations} ")
                 # recursively call this function again???
                 class_type = self.classtypes.get(in_id)
@@ -321,6 +331,14 @@ def setup_cmd_parser():
         "--resourceName",
         required=("--setup" not in sys.argv),
         help="setup the .env file for connecting to EDC",
+    )
+
+    parser.add_argument(
+        "--maxhops",
+        required=False,
+        type=int,
+        default=20,
+        help="max lineage hops for relationships api call.  0=everything, default=20",
     )
 
     parser.add_argument(
@@ -500,8 +518,12 @@ def process_lookup(lookup_id: str):
     # instead of running lineage for all fields downstream - just do it for all fields
     # it should be faster than getting individual fields and determining if in/out/both
 
-    print(f"\t{len(lookup_fields)} lookup fields found: {lookup_fields.keys()}")
-    logging.info(f"{len(lookup_fields)} lookup fields found: {lookup_fields.keys()}")
+    # workaround - requests lib CaseInsensitiveDict returns different structure for keys()
+    # use list comprehension to get a list of keys for logging/printing
+    lookup_keys = [x for x in lookup_fields.keys()]
+
+    print(f"\t{len(lookup_fields)} lookup fields found: {lookup_keys}")
+    logging.info(f"{len(lookup_fields)} lookup fields found: {lookup_keys}")
 
     print(f"\tanalyzing lookup statements: {len(lookup_statements)}")
     for statement in lookup_statements:
@@ -564,7 +586,7 @@ def process_lookup(lookup_id: str):
             if "items" in lineage_left_upstream
             else 0
         )
-        lineage_right_upstream = get_lineage_for_object(right_id, "IN", 10)
+        lineage_right_upstream = get_lineage_for_object(right_id, "IN", mem.max_hops)
         right_up_count = (
             len(lineage_right_upstream["items"])
             if "items" in lineage_right_upstream
@@ -573,7 +595,7 @@ def process_lookup(lookup_id: str):
         # get upstream lineage from right object (incoming for comparison)
         # get upstream lineage from left objects??? needed???
         all_lineage_downstream = get_lineage_for_object(
-            lookup_fields.values(), "OUT", 20
+            lookup_fields.values(), "OUT", mem.max_hops
         )
         downstream_lineage_count = (
             len(all_lineage_downstream["items"])
@@ -628,9 +650,7 @@ def process_lookup(lookup_id: str):
                 # print("exdend...")
                 down_lineage_endpoints.extend(ds_ids)
             # print(f"found lineage for id={lkp_field_id} - {ds_ids}")
-        print(f"all ds lineage size={len(down_lineage_endpoints)}")
-        print(down_lineage_endpoints)
-
+        print(f"\tall downstream lineage size={len(down_lineage_endpoints)}")
         print(f"\tdownstream fields to link:: {down_lineage_endpoints}")
         logging.info(f"downstream fields to link:: {down_lineage_endpoints}")
 
@@ -826,6 +846,18 @@ def main():
     if not os.path.exists(outFolder):
         print(f"creating new output folder: {outFolder}")
         os.makedirs(outFolder)
+
+    # store max hops
+    if args.maxhops != mem.max_hops:
+        # overriding default # of hops
+        if args.maxhops < 0:
+            print(
+                f"negative value passed for maxhops {args.maxhops}, "
+                f"keeping default: {mem.max_hops}"
+            )
+        else:
+            print(f"overriding lineage max hops from 20, to {args.maxhops}")
+            mem.max_hops = args.maxhops
 
     print(f"import to EDC: {args.edcimport}")
 

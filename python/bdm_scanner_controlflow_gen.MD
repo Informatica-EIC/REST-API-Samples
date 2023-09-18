@@ -14,6 +14,16 @@ that would need proper analysis/planning/implementation/testing etc.
 this utility script is intented to bridge the gap, to generate controlflows for Lookup 
 Transformations.
 
+## Release history
+
+- v1.0 - 2023-09-11 initial version
+- v1.1 - 2023-09-18 bugfixes, after more extensive testing
+  - fixed issue with lookup fields referenced in expression with different case to tx fields.  
+find for object by name is now case-insensitive
+  - fixed - `RecursionError: maximum recursion depth exceeded in comparison` where circular references were found in lineage for field
+  - fixed issue with lookup expression other than = is used. ` = , != , > , >= , < , <= ` are handled now 
+  - added paging model for processing mappings (100 at a time)
+
 ## Implementation
 
 This script is run for any BDM (Informatica Platform) resource & does the following
@@ -36,6 +46,7 @@ This script is run for any BDM (Informatica Platform) resource & does the follow
 
 
 Note:  the custom lineage file imported will use direct id's - not connection assignment
+
 
 ## Pre-requisites
 

@@ -33,7 +33,7 @@ if not os.path.exists("./log"):
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)-8s:%(module)s:%(message)s",
-    level=logging.DEBUG,
+    level=logging.INFO,
     filename=datetime.now().strftime(
         "./log/bdm_scanner_controlflow_gen_%Y_%m_%d_%H_%M_%S_%f.log"
     ),
@@ -107,7 +107,7 @@ class lineage_inspector:
         # extract the classtypes - for easier reference later
         self.classtypes = self.collect_classtypes_from_lineage(lineage_result)
 
-        logging.info(
+        logging.debug(
             f"calling _get_lineage_endpoints_downstream: for seed id={seed_id} "
             f"linage size={len(lineage_result)}"
         )
@@ -115,8 +115,8 @@ class lineage_inspector:
         # call the internal/recursive function, returns id's that are endpoints
         seed_ids = self._get_lineage_endpoints_downstream(lineage_result, seed_id)
 
-        logging.info(
-            f"_get_lineage_endpoints_upstream: returning {len(seed_ids)} objects"
+        logging.debug(
+            f"_get_lineage_endpoints_downstream: returning {len(seed_ids)} objects"
         )
         return seed_ids
 
@@ -135,7 +135,7 @@ class lineage_inspector:
         # extract the classtypes - for easier reference later
         self.classtypes = self.collect_classtypes_from_lineage(lineage_result)
 
-        logging.info(
+        logging.debug(
             f"calling _get_lineage_endpoints_upstream: for seed id={seed_id} "
             f"linage size={len(lineage_result)}"
         )
@@ -143,7 +143,7 @@ class lineage_inspector:
         # call the internal/recursive function, returns id's that are endpoints
         seed_ids = self._get_lineage_endpoints_upstream(lineage_result, seed_id)
 
-        logging.info(
+        logging.debug(
             f"_get_lineage_endpoints_upstream: returning {len(seed_ids)} objects"
         )
         return seed_ids
@@ -160,20 +160,6 @@ class lineage_inspector:
         self.recursion_level += 1
         if self.recursion_level > lineage_inspector.max_recursion:
             lineage_inspector.max_recursion = self.recursion_level
-
-        # possible error condition - if recursion is > # of objects in lineage
-        # someting we do not have a test-case for, but appeared to happen
-        # report error and return
-        if self.recursion_level > len(lineage_result["items"]):
-            logging.error(
-                f"recursion error: recursion leve {self.recursion_level}"
-                f" >= # of objects.  lineage={lineage_result}"
-            )
-            print(
-                f"recursion error: recursion leve {self.recursion_level}"
-                f" >= # of objects.  lineage={lineage_result}"
-            )
-            return endpoint_list
 
         # add this seed, as being processed (for recursion error check)
         self.ids_processed.append(seed_id)
@@ -204,11 +190,11 @@ class lineage_inspector:
                     # possible circular reference - so check if already processed
                     if out_id in self.ids_processed:
                         print(f"\tcircular reference found for: {out_id}, skipping")
-                        print("lineage: with issue\n")
-                        print(lineage_result)
-                        logging.info(
+                        # print("lineage: with issue\n")
+                        # print(lineage_result)
+                        logging.debug(
                             f"circular reference found for: {out_id}, skipping."
-                            f" lineage={lineage_result}"
+                            # f" lineage={lineage_result}"
                         )
                         continue
                     nested_ids = self._get_lineage_endpoints_upstream(
@@ -232,21 +218,6 @@ class lineage_inspector:
         self.recursion_level += 1
         if self.recursion_level > lineage_inspector.max_recursion:
             lineage_inspector.max_recursion = self.recursion_level
-
-        # possible error condition - if recursion is > # of objects in lineage
-        # someting we do not have a test-case for, but appeared to happen
-        # likely a sequence generator that does not link to a source
-        # report error and return
-        if self.recursion_level > len(lineage_result["items"]):
-            logging.warning(
-                f"recursion warning: recursion leve {self.recursion_level}"
-                f" >= # of objects.  lineage={lineage_result}"
-            )
-            print(
-                f"recursion error: recursion level {self.recursion_level}"
-                f" >= # of objects.  lineage={lineage_result}"
-            )
-            return endpoint_list
 
         # add this seed, as being processed (for recursion error check)
         self.ids_processed.append(seed_id)
@@ -273,11 +244,11 @@ class lineage_inspector:
                     # call this function recursively
                     if in_id in self.ids_processed:
                         print("\tcircular reference found for: {in_id}, skipping")
-                        print("lineage: with issue\n")
-                        print(lineage_result)
-                        logging.info(
+                        # print("lineage: with issue\n")
+                        # print(lineage_result)
+                        logging.debug(
                             f"circular reference found for: {in_id}, skipping."
-                            f" lineage={lineage_result}"
+                            # f" lineage={lineage_result}"
                         )
                         continue
 
@@ -522,8 +493,10 @@ def process_lookup(lookup_id: str):
     # use list comprehension to get a list of keys for logging/printing
     lookup_keys = [x for x in lookup_fields.keys()]
 
-    print(f"\t{len(lookup_fields)} lookup fields found: {lookup_keys}")
-    logging.info(f"{len(lookup_fields)} lookup fields found: {lookup_keys}")
+    # minimizing logging - don't need tp print the fields here,
+    # only do it if there are lookup issues
+    print(f"\t{len(lookup_fields)} lookup fields found")
+    logging.info(f"{len(lookup_fields)} lookup fields found")
 
     print(f"\tanalyzing lookup statements: {len(lookup_statements)}")
     for statement in lookup_statements:
@@ -567,11 +540,11 @@ def process_lookup(lookup_id: str):
         else:
             print(
                 f"error: cannot find right lookup field with name:{right_name} "
-                f"in {lookup_fields}"
+                f"in {lookup_keys}"
             )
             logging.error(
                 f"error: cannot find right lookup field with name:{right_name} "
-                f"in {lookup_fields}"
+                f"in {lookup_keys}"
             )
 
         print(f"\tlookup left: {left_id}")
@@ -672,7 +645,7 @@ def process_lookup(lookup_id: str):
                         # lookup_id,
                     ]
                 )
-                logging.info(
+                logging.debug(
                     f"writing lineage: core.DirectionalControlFlow from: {left}"
                     f" to {right}"
                 )
@@ -693,7 +666,7 @@ def process_lookup(lookup_id: str):
                             # lookup_id,
                         ]
                     )
-                    logging.info(
+                    logging.debug(
                         "writing lineage: core.DataSetControlFlow from: "
                         f"{left_parent} to {right_parent}"
                     )
@@ -780,7 +753,7 @@ def extract_lookup_fields(lookup_obj: dict) -> CaseInsensitiveDict:
         if dst_obj["classType"] == "com.infa.ldm.bdm.platform.Group":
             # print(f"\tlookup group found: {dst_obj['id']}")
             # get the group children
-            logging.info(f"reading lookup fields group: using id={dst_obj['id']}")
+            # logging.info(f"reading lookup fields group: using id={dst_obj['id']}")
             group_obj = get_object_using_id(dst_obj["id"])
             # iterate over the fields...
             print(f"\tlookup group obj has {len(group_obj['dstLinks'])} fields")
@@ -790,7 +763,7 @@ def extract_lookup_fields(lookup_obj: dict) -> CaseInsensitiveDict:
                 field_map_cis[name] = field_id
 
     # logging.info(f"group fields: {field_map}")
-    logging.info(f"lookup/group fields: {field_map_cis}")
+    # logging.info(f"lookup/group fields: {field_map_cis}")
 
     # return field_map
     return field_map_cis

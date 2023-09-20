@@ -19,27 +19,17 @@ import logging
 import edcutils
 import urllib3
 import time
-import platform
-from datetime import datetime
 import re
 
 urllib3.disable_warnings()
 
-version = "1.1"
+version = "1.2"
 
+# create log folder if it does not already exist
 if not os.path.exists("./log"):
     print("creating log folder ./log")
     os.makedirs("./log")
 
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)-8s:%(module)s:%(message)s",
-    level=logging.INFO,
-    filename=datetime.now().strftime(
-        "./log/bdm_scanner_controlflow_gen_%Y_%m_%d_%H_%M_%S_%f.log"
-    ),
-    # filename=datetime.now().strftime("./log/bdm_scanner_controlflow_gen.log"),
-    filemode="w",
-)
 
 # create the EDC session helper class
 edcHelper = edcSessionHelper.EDCSession()
@@ -66,6 +56,7 @@ class mem:
     dset_unique_links = set()
     error_count = 0
     max_hops = 20
+    mapping_name = None
 
 
 class lineage_inspector:
@@ -305,6 +296,14 @@ def setup_cmd_parser():
     )
 
     parser.add_argument(
+        "--mapping",
+        help=(
+            "search for a specific mapping by name "
+            "(will add a fq core.name:<name-entered>)"
+        ),
+    )
+
+    parser.add_argument(
         "--maxhops",
         required=False,
         type=int,
@@ -321,6 +320,10 @@ def setup_cmd_parser():
             "output folder to write results - default = ./out "
             " - will create folder if it does not exist"
         ),
+    )
+
+    parser.add_argument(
+        "--debug", default=False, action="store_true", help="set logging to DEBUG "
     )
 
     parser.add_argument(
@@ -366,11 +369,18 @@ def bdm_lookup_ctlflow_links(resource_name: str, out_folder):
     page = 0
     page_size = 100
     query = "core.classType:com.infa.ldm.bdm.platform.Mapping"
-    fq = f"core.resourceName:{resource_name}"
+    fq = [f"core.resourceName:{resource_name}"]
+    if mem.mapping_name is not None:
+        fq.append(f"core.name:{mem.mapping_name}")
     item_count = 0
 
     resturl = edcHelper.baseUrl + "/access/2/catalog/data/objects"
-    print(f"calling:  #{resturl}#")
+    # print(f"calling:  #{resturl}#")
+    print(
+        f"search for platform mappings using query={query} fq={fq}, "
+        f"pagesize={page_size}"
+    )
+
     logging.info(
         f"search for platform mappings using query={query} fq={fq}, "
         f"pagesize={page_size}"
@@ -428,7 +438,7 @@ def process_mapping(mapping_obj: dict):
     """
     mem.mapping_count += 1
     print(
-        f"\nprocessing mapping: {mem.mapping_count} of {mem.mapping_total} - "
+        f"processing mapping: {mem.mapping_count} of {mem.mapping_total} - "
         f"{mapping_obj['id']}"
     )
     logging.info(
@@ -489,7 +499,7 @@ def process_lookup(lookup_id: str):
     # instead of running lineage for all fields downstream - just do it for all fields
     # it should be faster than getting individual fields and determining if in/out/both
 
-    # workaround - requests lib CaseInsensitiveDict returns different structure for keys()
+    # workaround: requests.CaseInsensitiveDict returns different structure for keys()
     # use list comprehension to get a list of keys for logging/printing
     lookup_keys = [x for x in lookup_fields.keys()]
 
@@ -774,11 +784,8 @@ def main():
     description to be added here
     """
     print(f"BDM Scanner control flow lineage generator: version {version} starting")
-    logging.info(
-        f"BDM Scanner control flow lineage generator: version {version} starting"
-    )
-    print(f"using Python version: {platform.python_version()}")
-    logging.info(f"using Python version: {platform.python_version()}")
+    # print(f"using Python version: {platform.python_version()}")
+    # logging.info(f"using Python version: {platform.python_version()}")
     start_time = time.time()
     resourceName = ""
     outFolder = "./out"
@@ -793,16 +800,6 @@ def main():
         setupConnection.main()
         return
 
-    # setup edc session and catalog url - with auth in the session header,
-    # by using system vars or command-line args
-    edcHelper.initUrlAndSessionFromEDCSettings()
-    edcHelper.validateConnection()
-    print(f"EDC version: {edcHelper.edcversion_str} ## {edcHelper.edcversion}")
-
-    print(f"command-line args parsed = {args} ")
-    print()
-
-    # print(type(args))
     if args.resourceName is not None:
         resourceName = args.resourceName
     else:
@@ -811,6 +808,45 @@ def main():
             "process cannot completed without a BDM Scanner resource"
         )
         return
+
+    log_suffix = ""
+
+    if args.mapping is not None:
+        # store mapping name - for search
+        print(f"\tstoring mapping={args.mapping} to filter search")
+        mem.mapping_name = args.mapping
+        log_suffix = "__" + args.mapping
+
+    # default logging level
+    logging_level = logging.INFO
+
+    if args.debug:
+        print("debug logging enabled")
+        logging_level = logging.DEBUG
+
+    log_filename = f"./log/bdm_scanner_ctlflow_{resourceName}{log_suffix}.log"
+    print(f"log file: {log_filename}")
+
+    # init logging
+    logging.basicConfig(
+        format="%(asctime)s:%(levelname)-8s:%(module)s:%(message)s",
+        level=logging_level,
+        filename=log_filename,
+        # filename=datetime.now().strftime("./log/bdm_scanner_controlflow_gen.log"),
+        filemode="w",
+    )
+    logging.info(
+        f"BDM Scanner control flow lineage generator: version {version} starting"
+    )
+
+    # setup edc session and catalog url - with auth in the session header,
+    # by using system vars or command-line args
+    edcHelper.initUrlAndSessionFromEDCSettings()
+    edcHelper.validateConnection()
+    print(f"EDC version: {edcHelper.edcversion_str} ## {edcHelper.edcversion}")
+
+    print(f"command-line args parsed = {args} ")
+    print()
 
     if args.outDir is not None:
         outFolder = args.outDir
@@ -871,6 +907,8 @@ def main():
         return
 
     lineage_resource = resourceName + "_controlflow_lineage"
+    if mem.mapping_name is not None:
+        lineage_resource = lineage_resource + "_" + mem.mapping_name
     lineage_fileonly = mem.lineage_csv_filename[
         mem.lineage_csv_filename.rfind("/") + 1 :
     ]
@@ -905,6 +943,10 @@ def init_files(resourceName: str, outFolder: str):
     open files for output - to be used for writing individual links
     """
     file_to_write = f"{outFolder}/{resourceName}_controlflow_lineage.csv"
+    if mem.mapping_name is not None:
+        file_to_write = (
+            f"{outFolder}/{resourceName}_controlflow_lineage_{mem.mapping_name}.csv"
+        )
     logging.info(f"initializing csv file: {file_to_write}")
     # create the files and store in mem object for reference later
     mem.fConnLinks = open(file_to_write, "w", newline="")

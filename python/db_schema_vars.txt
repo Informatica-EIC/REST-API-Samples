@@ -1,0 +1,5 @@
+# variables for db schema custom attribute process
+schema_custom_attr_id=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab
+schema_custom_attr_name=DB schema
+
+class_types=com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn

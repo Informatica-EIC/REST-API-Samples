@@ -24,6 +24,7 @@ import os
 import sys
 import pathlib
 from dotenv import load_dotenv
+from datetime import datetime
 
 urllib3.disable_warnings()
 
@@ -72,7 +73,11 @@ class db_schema_customattr:
         print("initializing process...")
         self.args_parser = self.setup_cmd_parser()
         self.class_types = "com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn"
-
+        # empty list of resources to process (since we process 1 at a time)
+        self.resources_to_process = []
+        self.schema_map = {}        # schema id: schema name
+        self.resource_map = {}      # resource name: count of found objects
+        self.resoource_files = {}   # file fqdn: filename
     
     def start(self):
         print("process starts here...")
@@ -91,7 +96,20 @@ class db_schema_customattr:
         rc = self.store_args()
         if not rc:
             return
+        if not self.validate_custom_attr(self.schema_cust_attr_id):
+            print("schema custom attribtue not valid, exiting")
+            return
+
         self.count_objects_to_process()
+        
+        # assuming there are objects and resources to process, then proceed
+        if len(self.resources_to_process) == 0:
+            print("no objects or resources to process, exiting")
+            return
+        
+        for resource_name in self.resources_to_process:
+            # start the process for the resource
+            self.process_resource(resource_name)
         # 2 - get schema names and id's (for lookup)
         # 3 - find/export objects that need custom attribute values
 
@@ -124,7 +142,6 @@ class db_schema_customattr:
                     print("Error:  no value found for schema custom attribute in 'schema_custom_attr_id', exiting")
                     return False
                 self.schema_cust_attr_id = cust_attr_id
-                self.validate_custom_attr(cust_attr_id)
 
                 class_types = os.getenv("class_types")
                 print(f"\tclass types to update={class_types}")
@@ -136,7 +153,7 @@ class db_schema_customattr:
 
                 return True
 
-    def validate_custom_attr(self, attr_id: str):
+    def validate_custom_attr(self, attr_id: str) -> bool:
         # check that the custom attribute id exists (and what classtypes it is valid for?)
         print(f"validating custom attribute exists: id={attr_id}")
         edcHelper.initUrlAndSessionFromEDCSettings()
@@ -152,7 +169,7 @@ class db_schema_customattr:
             print("Error connecting to : " + resturl)
             print(e)
             # exit if we can't connect
-            sys.exit(1)
+            return False
 
                 # no execption rasied - so we can check the status/return-code
         status = resp.status_code
@@ -167,21 +184,68 @@ class db_schema_customattr:
         resultJson = resp.json()
         # store the total, so we know when the last page of results is read
         # total = resultJson["metadata"]["totalCount"]
-        print(resultJson)
+        # print(resultJson)
         # get the attribute name
+        print(f"\tattribute is valid id={self.schema_cust_attr_id}")
         self.schema_attr_name = resultJson['name']
-        print(f"attribute name={self.schema_attr_name}")
+        print(f"\tattribute name={self.schema_attr_name}")
         # inspect the classes
         schema_classes = resultJson['classes']
-        print(f"classes referenced by attr: {len(schema_classes)}")
+        print(f"\tclasses referenced by attr: {len(schema_classes)}")
 
-
+        return True
 
 
     def count_objects_to_process(self):
         print("1 - counting objects to process")
-        
-        
+        parms = { "q":f"core.classType:({self.class_types})"
+                 ,"fq": f"NOT {self.schema_cust_attr_id}:[* TO *]"
+                 ,"defaultFacets": "false"
+                 ,"facet": "true"
+                 , "facetId": ["core.resourceType", "core.resourceName", "core.classType"]
+                 , "offset": 0
+                 , "pageSize": 1
+                }
+        resturl = edcHelper.baseUrl + f"/access/2/catalog/data/search"
+
+        # execute catalog rest call, for a page of results
+        try:
+            resp = edcHelper.session.get(resturl, params=parms, timeout=3)
+        except requests.exceptions.RequestException as e:
+            print("Error connecting to : " + resturl)
+            print(e)
+            # exit if we can't connect
+            return False
+
+                # no execption rasied - so we can check the status/return-code
+        status = resp.status_code
+        if status != 200:
+            # some error - e.g. catalog not running, or bad credentials
+            print("error! " + str(status) + str(resp.json()))
+            # since we are in a loop to get pages of objects - break will exit
+            # break
+            # instead of break - exit this script
+            sys.exit(1)
+
+        resultJson = resp.json()
+
+        total = resultJson["metadata"]["totalCount"]
+        print(f"\tsearch successful: {total:,} objects found to update")
+
+        # read the resoureceName facet - gets a unique list of resources and the count of objects
+        all_facets = resultJson["facetResults"]
+        for facet_result in all_facets:
+            if facet_result["facetId"] == "core.resourceName":
+                # resource facet here
+                buckets = facet_result["buckets"]
+                print(f"\tresource buckets = {len(buckets)}")   
+                for resource_facet in buckets:
+                    res_name = resource_facet['value']
+                    res_count = resource_facet['count']
+                    print(f"\t\tresource:{res_name} count={res_count:,}")   
+                    self.resource_map[res_name] = res_count
+                    self.resources_to_process.append(res_name)  
+        return        
 
 
     def setup_cmd_parser(self):
@@ -233,10 +297,221 @@ class db_schema_customattr:
         )
 
         return args_parser
+    
+
+    def process_resource(self, resource_name:str):
+        print(f"processing resource {resource_name}")
+        # get/create schema id to name mapping
+        self.extract_schema_names(resource_name)
+
+        # extract schema nam
+        print(self.schema_map)
+
+        self.process_resource_objects(resource_name)
+        # search for all objects in resource and match schema
+
+
+    def extract_schema_names(self, resource_name:str):
+        # use
+        print(f"\textracting schema names for resource: {resource_name}")
+
+        # use id:<resource_name>:* to ensure only that resource objects are returned
+        # using core.resourceName:<name> will also get resources with extra sufixes
+        params = {
+             "q": f"id:{resource_name}\:*"
+            ,"fq": "core.classType:com.infa.ldm.relational.Schema"
+            ,"fl": "core.name"
+            ,"pageSize": 1000
+            ,"offset": 0
+        }
+        resturl = edcHelper.baseUrl + f"/access/2/catalog/data/search"
+
+               # execute catalog rest call, for a page of results
+        try:
+            resp = edcHelper.session.get(resturl, params=params, timeout=3)
+        except requests.exceptions.RequestException as e:
+            print("Error connecting to : " + resturl)
+            print(e)
+            # exit if we can't connect
+            return False
+
+                # no execption rasied - so we can check the status/return-code
+        status = resp.status_code
+        if status != 200:
+            # some error - e.g. catalog not running, or bad credentials
+            print("error! " + str(status) + str(resp.json()))
+            # since we are in a loop to get pages of objects - break will exit
+            # break
+            # instead of break - exit this script
+            sys.exit(1)
+
+        resultJson = resp.json()
+
+        total = resultJson["metadata"]["totalCount"]
+        print(f"\tschema search successful: {total:,} found")
+        # reset schema name mapping
+        self.schema_map.clear()
+
+        for schema_hit in resultJson['hits']:
+            schema_id = schema_hit["id"]
+            schema_name = schema_hit["values"][0]["value"]
+            print(f"\t\tschema={schema_name} id={schema_id}")
+            self.schema_map[schema_id] = schema_name
+
+        return  # end of extract schema names for resource
+
+    def process_resource_objects(self, resource_name):
+        # run the actual search & iterate over the results
+        page_size = 500
+        offset = 0
+        expected_count = self.resource_map[resource_name]
+        print(f"searching for objects to update in resource: {resource_name}, should find {expected_count}")
+
+        #   id:WideWorldImporters_SQLServer\:*
+        parms = { "q":f"id:{resource_name}\:*"
+                 ,"fq": [
+                       f"NOT {self.schema_cust_attr_id}:[* TO *]"
+                     , f"core.classType:({self.class_types})"
+                        ]
+                 ,"defaultFacets": "false"
+                 ,"fl": ["core.name", "core.classType"]
+                 ,"facet": "true"
+                 ,"facetId": ["core.resourceType", "core.resourceName", "core.classType"]
+                 ,"offset": offset
+                 ,"pageSize": page_size
+                }
+        resturl = edcHelper.baseUrl + f"/access/2/catalog/data/search"
+
+        while offset < expected_count:
+            # override offset
+            parms["offset"] = offset
+            print(f"\tready to query page with offset: {offset}")
+
+            # execute serach - iterate results and write to file then send bulk import
+                    # execute catalog rest call, for a page of results
+            try:
+                resp = edcHelper.session.get(resturl, params=parms, timeout=3)
+            except requests.exceptions.RequestException as e:
+                print("Error connecting to : " + resturl)
+                print(e)
+                # exit if we can't connect
+                return False
+
+            status = resp.status_code
+            if status != 200:
+                # some error - e.g. catalog not running, or bad credentials
+                print("error! " + str(status) + str(resp.json()))
+                # since we are in a loop to get pages of objects - break will exit
+                # break
+                # instead of break - exit this script
+                sys.exit(1)
+
+            resultJson = resp.json()
+
+            total = resultJson["metadata"]["totalCount"]
+            print(f"\tsearch successful: {len(resultJson['hits']):,} objects found to update")
+
+            # create bulk import file
+            self.create_bulk_file(resource_name)
+
+            for obj_found in resultJson['hits']:
+                obj_id = obj_found["id"]
+                schema_id = "/".join(obj_id.split("/", 4)[:4])
+                schema_name = self.schema_map[schema_id]
+                # get the classype
+                class_type = obj_found["values"][0]["value"]
+                abbrev_type = class_type.rsplit(".",1)[-1]
+                obj_name = obj_found["values"][1]["value"]
+                # print(f"\t\tobject to update: {obj_id} \n\t\t\twith value={schema_name} type={abbrev_type} name={obj_name}")
+
+                # write entry to bulk import file
+                csv_row = [obj_id, obj_name, abbrev_type, schema_name]
+                self.bulk_writer.writerow(csv_row)
 
 
 
+            # call bulk import for file (after closing)
+            try:
+                self.fcsvbulk.close()
+                print(f"bulk file closed...{self.bulk_file_name}")
+                # self.start_edc_bulk_import(self.bulk_file_name, self.bulk_file_fqdn)
 
+            except:
+                print("error closing csv bulk file")
+
+
+            # for next iteration
+            offset += page_size
+
+
+        # end of process for a resource...  now call bulk import for all files
+        # need to do it this way, as if we call bulk import for each file, it will finish
+        # very fast and skew the next results 
+        print(f"resource: {resource_name} complete - imppring files")
+        for file_full_path, file_name in self.resoource_files.items():
+            print(f"\tbulk importing: {file_full_path}")
+            self.start_edc_bulk_import(file_name, file_full_path)
+
+        # clear out resource files - since they are all now processed
+        self.resoource_files.clear() 
+
+        return  # process resource objects
+
+
+    def create_bulk_file(self, resource_name: str) -> str:
+        # create a new file - <resourceName>_<timestamp>.csv
+        # with header for bulk import
+        # returning the file name
+        now = datetime.now()
+        timestamp_ms = now.strftime("%Y%m%d_%H%M%S%f")
+
+        self.bulk_file_name = f"{resource_name}_{timestamp_ms}.csv"
+        self.bulk_file_fqdn = f"./bulk/{self.bulk_file_name}"
+
+        # add to map - for bulk import after the resource finished
+        self.resoource_files[self.bulk_file_fqdn] = self.bulk_file_name
+
+        print(f"File to create={self.bulk_file_fqdn}") 
+
+        self.fcsvbulk = open(self.bulk_file_fqdn, "w", newline="", encoding="utf8")
+        self.bulk_writer = csv.writer(self.fcsvbulk)
+        header1 = ["id", "core.name", "core.classType", self.schema_cust_attr_id]
+        header2 = ["id", "name", "classType", self.schema_attr_name]
+
+        self.bulk_writer.writerow(header1)
+        self.bulk_writer.writerow(header2)
+
+        return  # init bulk file
+    
+
+    def start_edc_bulk_import(self, fileName: str, fullPath: str):
+        """
+        start the bulk import process bu uploading the csv file
+        we need to make sure we add the com.infa.appmodels.ldm package, or it will fail with a weird message (csv tampered with)
+        """
+        apiURL = edcHelper.baseUrl + "/access/2/catalog/jobs/objectImports"
+
+        # print("\turl=" + apiURL)
+        params = {"packages": "com.infa.appmodels.ldm,com.infa.ldm.ootb.enrichments"}
+
+        # print("\t" + str(params))
+        file = {"file": (fileName, open(fullPath, "rt"), "text/csv")}
+        # print(f"\t{file}")
+        uploadResp = edcHelper.session.post(
+            apiURL,
+            data=params,
+            files=file,
+        )
+        print("\tresponse=" + str(uploadResp.status_code))
+        if uploadResp.status_code == 200:
+            # valid - return the json
+            return uploadResp.status_code
+        else:
+            # not valid
+            print("\tbulk import process (file upload) failed")
+            print("\t" + str(uploadResp))
+            print("\t" + str(uploadResp.text))
+            return uploadResp.status_code
     
 
 

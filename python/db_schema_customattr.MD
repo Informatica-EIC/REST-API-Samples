@@ -6,6 +6,15 @@ provide a way to populate a custom attribute for tables/viiews/columns with the 
 since EDC does not provide a search via hierarchy )like find tables in schema x), request as come in to enable a searchable/facteable property to score schema name.
 it would be a large change for all relational scanners to add this & a script could be easily crated and run periodically.
 
+# out of scope / known limitations
+
+- objects belonging to external database/schemas will not be updated, since they external references and should disapear starting with v10.5.8 (suggest manual export bulk import if this db schema attriute is needed here)
+
+# todo
+
+- check/create cache folder & use cmd parameter (seperate folders for different catalogs)
+- test external schemas & gbq v1 dataset/object types
+- add a filter to exclude/include resources (maybe as a complete fq)
 
 
 # initial search

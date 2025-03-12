@@ -1,11 +1,33 @@
 """
 Created February, 2025
 
-pupulate custom attribute values for relational database objects (tables/views/columns) 
+pupulate custom attribute values for relational database objects (tables/views/columns)
 storing the schema name that owns these elements.
 this should make searching easier for objects that are owned-by a schema
 
-usage:  xdoc_lineage_gen.py  <parms>
+usage: db_schema_customattr.py [-h] [-c EDCURL] [-v ENVFILE] [-a AUTH | -u USER] [-s SSLCERT] [-o OUTDIR] [-pf PARMS_FILE] [-i] [--pagesize PAGESIZE]
+                               [--queuesize QUEUESIZE] [--setup]
+
+options:
+  -h, --help            show this help message and exit
+  -c, --edcurl EDCURL   edc url - including http(s)://<server>:<port>, if not already configured via INFA_EDC_URL environment var
+  -v, --envfile ENVFILE
+                        .env file with config settings INFA_EDC_URL,INFA_EDC_AUTH etc will over-ride system environment variables. if not specified - '.env'
+                        file in current folder will be used
+  -a, --auth AUTH       basic authorization encoded string (preferred over -u) if not already configured via INFA_EDC_AUTH environment var
+  -u, --user USER       user name - will also prompt for password
+  -s, --sslcert SSLCERT
+                        ssl certificate (pem format), if not already configured via INFA_EDC_SSL_PEM environment var
+  -o, --outDir OUTDIR   output folder to write results - default = ./out - will create folder if it does not exist
+  -pf, --parms_file PARMS_FILE
+                        varibles file to used to control the process, like custom attribute id & classtypes to check
+  -i, --edcimport       execute bulk import processes, if false it is really a test mode
+  --pagesize PAGESIZE   pageSize to use for search when returning object contents, default 1000
+  --queuesize QUEUESIZE
+                        max number of jobs for the bulk import queue, default 10. process will pause until queue size is less than max
+  --setup               setup the connection to EDC by creating a .env file - same as running setupConnection.py and is useful if packaged as a stand-alone
+                        executable
+
 
 @author: dwrigley
 """
@@ -57,6 +79,17 @@ def main():
     custom_process.start()
 
     print("process ended")
+    print(f"\t    resources processed: {len(custom_process.resources_to_process)}")
+    print(f"\t          files created: {len(custom_process.files_created)}")
+    print(f"\t         total csv rows: {custom_process.rows_exported}")
+    print(f"\t bulk imports submitted: {len(custom_process.files_imported)}")
+
+    print(f"\t   schema lookup errors: {custom_process.schema_lookup_errors}")
+    print(f"\texternal schema matches: {custom_process.schema_alt_found}")
+    print("")
+    elapsed_seconds = time.time() - start_time
+    # print(f"run time = {elapsed_seconds:.2f} seconds ---")
+    print(f"run time: {time.strftime("%H:%M:%S", time.gmtime(elapsed_seconds))}")
 
 
 class db_schema_customattr:
@@ -75,7 +108,17 @@ class db_schema_customattr:
         self.resources_to_process = []
         self.schema_map = {}  # schema id: schema name
         self.resource_map = {}  # resource name: count of found objects
-        self.resoource_files = {}  # file fqdn: filename
+        self.resource_files = {}  # file full_path: filename
+        self.pagesize = 1000  # default pagesize, override in args
+        self.bulk_queuesize = 10  # default queue size to limit bulk imports
+        self.sleep_seconds = 2  # seconds to sleep, to check queue again
+        self.out_folder = "./bulk"  # default folder for csv files created
+        self.schema_lookup_errors = 0  # counter for any errors finding sch name
+        self.schema_alt_found = 0  # counter for external schema matches
+        self.files_created = []  # list of the actual files created
+        self.files_imported = []  # list of the actual files imported
+        self.rows_exported = 0  # counter for total rows written to all csv files
+        self.query_filters = []  # list of additional query filters from parm file
 
     def start(self):
         print("process starts here...")
@@ -119,7 +162,36 @@ class db_schema_customattr:
     def store_args(self) -> bool:
         # extract args as individial vars (& print for context)
         if self.args.outDir != self.out_folder:
-            print("storing new out folder here")
+            self.out_folder = self.args.outDir
+            print(f"\toutput folder set to {self.out_folder}")
+            if self.out_folder != "":
+                if not os.path.exists(self.out_folder):
+                    print(f"\tcreating folder: {self.out_folder}")
+                    os.makedirs(self.out_folder)
+
+        if self.args.edcimport:
+            # execute bulk import switch (default off)
+            print("bulk import mode configured --edcimport")
+        else:
+            print("test mode, no bulk import will happen")
+
+        if self.args.pagesize:
+            # store the pagesize
+            if self.args.pagesize != self.pagesize:
+                self.pagesize = self.args.pagesize
+                print(f"setting pagesize to {self.pagesize}")
+
+        # overriding queue size
+        if self.args.queuesize <= 0 or self.args.queuesize > 100:
+            # invalid
+            print(f"quesize arg has invalid value: {self.args.queuesize} disregrding")
+        # elif self.args.queuesize > 100:
+        #     print(f"quesize arg has invalid value: {self.args.queuesize} disregrding")
+        else:
+            if self.args.queuesize != self.bulk_queuesize:
+                print(f"storing queuesize={self.args.queuesize}")
+                self.bulk_queuesize = self.args.queuesize
+
         if self.args.parms_file:
             print(f"storing vars file={self.args.parms_file}")
             # read the parms file - using dotenv
@@ -159,6 +231,25 @@ class db_schema_customattr:
                         )
                         self.class_types = class_types
 
+                # check for query_filter - up to 5??
+                for qf_suffix in range(1, 6, 1):
+                    filter_name = "query_filter" + str(qf_suffix)
+                    # print(f"\tchecking query filter: {filter_name}")
+                    fq = os.getenv(filter_name)
+                    if fq != None:
+                        if len(fq) > 0:
+                            # self.query_filter = fq
+                            self.query_filters.append(fq)
+                            print(
+                                f"\tstoring additional query filter {filter_name} = {fq}"
+                            )
+                        else:
+                            print(f"\tquery filter has no value, disregarding")
+
+                print(
+                    f"\t{len(self.query_filters)} query filters stored from parameter file"
+                )
+
                 return True
 
     def validate_edc_connection(self) -> bool:
@@ -196,7 +287,7 @@ class db_schema_customattr:
             # since we are in a loop to get pages of objects - break will exit
             # break
             # instead of break - exit this script
-            sys.exit(1)
+            return False
 
         resultJson = resp.json()
         # store the total, so we know when the last page of results is read
@@ -216,13 +307,19 @@ class db_schema_customattr:
         print("1 - counting objects to process")
         parms = {
             "q": f"core.classType:({self.class_types})",
-            "fq": f"NOT {self.schema_cust_attr_id}:[* TO *]",
+            "fq": [f"NOT {self.schema_cust_attr_id}:[* TO *]"],
             "defaultFacets": "false",
             "facet": "true",
             "facetId": ["core.resourceType", "core.resourceName", "core.classType"],
             "offset": 0,
             "pageSize": 1,
         }
+
+        # if additional query filter is specified add it
+        if len(self.query_filters) > 0:
+            current_fq = parms.get("fq")
+            current_fq.extend(self.query_filters)
+            print(f"\t\tsearch fq is now: {current_fq}")
 
         status, resultJson = self.search_edc(parms)
         if status != 200:
@@ -261,9 +358,9 @@ class db_schema_customattr:
             "-o",
             "--outDir",
             required=False,
-            default="./out",
+            default="./bulk",
             help=(
-                "output folder to write results - default = ./out "
+                "output folder to write results - default = ./bulk "
                 " - will create folder if it does not exist"
             ),
         )
@@ -272,19 +369,32 @@ class db_schema_customattr:
             "-pf",
             "--parms_file",
             required=False,
-            help="varibles file to use for instance of the process",
+            help="varibles file to used to control the process, like custom attribute id & classtypes to check",
         )
 
-        # args_parser.add_argument(
-        #     "-i",
-        #     "--edcimport",
-        #     default=False,
-        #     # type=bool,
-        #     action="store_true",
-        #     help=(
-        #         "execute bulk import processes, if false it is really a test mode "
-        #     ),
-        # )
+        args_parser.add_argument(
+            "-i",
+            "--edcimport",
+            required=False,
+            # type=bool,
+            action="store_true",
+            help=("execute bulk import processes, if false it is really a test mode "),
+        )
+
+        args_parser.add_argument(
+            "--pagesize",
+            required=False,
+            type=int,
+            help="pageSize to use for search when returning object contents, default 1000",
+        )
+
+        args_parser.add_argument(
+            "--queuesize",
+            required=False,
+            default=10,
+            type=int,
+            help="max number of jobs for the bulk import queue, default 10.  process will pause until queue size is less than max",
+        )
 
         args_parser.add_argument(
             "--setup",
@@ -299,30 +409,30 @@ class db_schema_customattr:
         return args_parser
 
     def process_resource(self, resource_name: str):
+        # find objects in the resource that are missing the custom attribute contents
+        # first extract the schema names, so we know what value to add to the attribute
+        # process_resource_objects will execute the search and call bulk import
+
         print(f"processing resource {resource_name}")
         # get/create schema id to name mapping
         self.extract_schema_names(resource_name)
 
-        # extract schema nam
-        print(self.schema_map)
-
         self.process_resource_objects(resource_name)
-        # search for all objects in resource and match schema
 
     def extract_schema_names(self, resource_name: str):
-        # use
         print(f"\textracting schema names for resource: {resource_name}")
+        # reset schema name mapping
+        self.schema_map.clear()
 
         # use id:<resource_name>:* to ensure only that resource objects are returned
-        # using core.resourceName:<name> will also get resources with extra sufixes
+        # using core.resourceName:<name> will also get resources with extra suffixes
         params = {
-            "q": f"id:{resource_name}\:*",
-            "fq": "core.classType:com.infa.ldm.relational.Schema",
+            "q": f"id:{resource_name}" + r"\:*",
+            "fq": "core.classType:(com.infa.ldm.relational.Schema com.infa.ldm.google.bigquery.Dataset com.infa.ldm.relational.ExternalSchema)",
             "fl": "core.name",
             "pageSize": 1000,
             "offset": 0,
         }
-
         status, resultJson = self.search_edc(params)
 
         if status != 200:
@@ -332,9 +442,8 @@ class db_schema_customattr:
 
         total = resultJson["metadata"]["totalCount"]
         print(f"\tschema search successful: {total:,} found")
-        # reset schema name mapping
-        self.schema_map.clear()
 
+        # store schema id:name in dict, for lookup when processing objects
         for schema_hit in resultJson["hits"]:
             schema_id = schema_hit["id"]
             schema_name = schema_hit["values"][0]["value"]
@@ -345,7 +454,8 @@ class db_schema_customattr:
 
     def process_resource_objects(self, resource_name):
         # run the actual search & iterate over the results
-        page_size = 500
+        # get pagesize from args...
+        page_size = self.pagesize
         offset = 0
         expected_count = self.resource_map[resource_name]
         print(
@@ -354,7 +464,7 @@ class db_schema_customattr:
 
         #   id:WideWorldImporters_SQLServer\:*
         parms = {
-            "q": f"id:{resource_name}\:*",
+            "q": f"id:{resource_name}" + r"\:*",
             "fq": [
                 f"NOT {self.schema_cust_attr_id}:[* TO *]",
                 f"core.classType:({self.class_types})",
@@ -393,6 +503,30 @@ class db_schema_customattr:
             for obj_found in resultJson["hits"]:
                 obj_id = obj_found["id"]
                 schema_id = "/".join(obj_id.split("/", 4)[:4])
+                if schema_id not in self.schema_map:
+                    # problem - schema not found, skip the object
+
+                    # this could be because of external schema objects.  so check
+                    # all schema id's for a match.
+                    is_found = False
+                    for sch_id_to_check in self.schema_map.keys():
+                        if obj_id.startswith(sch_id_to_check + "/"):
+                            # match
+                            # set schema_id.
+                            schema_id = sch_id_to_check
+                            is_found = True
+                            self.schema_alt_found += 1
+                            # print(
+                            #     f"\tschema found using alternate, probably via external schema object {schema_id} "
+                            # )
+                            break  # match found, so we can continue
+                    if not is_found:
+                        # error, schema not found - so skip this item
+                        print(
+                            f"\tschema id not found: {schema_id} skipping - obj={obj_id}"
+                        )
+                        self.schema_lookup_errors += 1
+                        continue
                 schema_name = self.schema_map[schema_id]
                 # get the classype
                 class_type = obj_found["values"][0]["value"]
@@ -403,11 +537,12 @@ class db_schema_customattr:
                 # write entry to bulk import file
                 csv_row = [obj_id, obj_name, abbrev_type, schema_name]
                 self.bulk_writer.writerow(csv_row)
+                self.rows_exported += 1
 
             # call bulk import for file (after closing)
             try:
                 self.fcsvbulk.close()
-                print(f"bulk file closed...{self.bulk_file_name}")
+                # print(f"bulk file closed...{self.bulk_file_name}")
                 # self.start_edc_bulk_import(self.bulk_file_name, self.bulk_file_fqdn)
 
             except:
@@ -419,13 +554,18 @@ class db_schema_customattr:
         # end of process for a resource...  now call bulk import for all files
         # need to do it this way, as if we call bulk import for each file, it will finish
         # very fast and skew the next results
-        print(f"resource: {resource_name} complete - imppring files")
-        for file_full_path, file_name in self.resoource_files.items():
-            print(f"\tbulk importing: {file_full_path}")
-            self.start_edc_bulk_import(file_name, file_full_path)
+        print(
+            f"resource: {resource_name} complete - importing {len(self.resource_files)} files"
+        )
+        if self.args.edcimport:
+            for file_full_path, file_name in self.resource_files.items():
+                print(f"\tbulk importing: {file_full_path}")
+                self.start_edc_bulk_import(file_name, file_full_path)
+        else:
+            print("\tuse --edcimport cmdline switch to enable bulk import")
 
         # clear out resource files - since they are all now processed
-        self.resoource_files.clear()
+        self.resource_files.clear()
 
         return  # process resource objects
 
@@ -437,10 +577,10 @@ class db_schema_customattr:
         timestamp_ms = now.strftime("%Y%m%d_%H%M%S%f")
 
         self.bulk_file_name = f"{resource_name}_{timestamp_ms}.csv"
-        self.bulk_file_fqdn = f"./bulk/{self.bulk_file_name}"
+        self.bulk_file_fqdn = f"{self.out_folder}/{self.bulk_file_name}"
 
         # add to map - for bulk import after the resource finished
-        self.resoource_files[self.bulk_file_fqdn] = self.bulk_file_name
+        self.resource_files[self.bulk_file_fqdn] = self.bulk_file_name
 
         print(f"File to create={self.bulk_file_fqdn}")
 
@@ -451,6 +591,7 @@ class db_schema_customattr:
 
         self.bulk_writer.writerow(header1)
         self.bulk_writer.writerow(header2)
+        self.files_created.append(self.bulk_file_fqdn)
 
         return  # init bulk file
 
@@ -466,6 +607,17 @@ class db_schema_customattr:
 
         # print("\t" + str(params))
         file = {"file": (fileName, open(fullPath, "rt"), "text/csv")}
+
+        # before submitting - we want to make sure the bulk import queue is not overloaded
+        queued_job_count = self.get_bulk_queue_count()
+        print(f"\tjobs currently queued for reset={queued_job_count}")
+        while queued_job_count >= self.bulk_queuesize:
+            print(
+                f"\tcurrent queue ({queued_job_count}) >= threshold ({self.bulk_queuesize}), waiting..."
+            )
+            time.sleep(1)
+            queued_job_count = self.get_bulk_queue_count()
+
         # print(f"\t{file}")
         uploadResp = edcHelper.session.post(
             apiURL,
@@ -475,6 +627,8 @@ class db_schema_customattr:
         print("\tresponse=" + str(uploadResp.status_code))
         if uploadResp.status_code == 200:
             # valid - return the json
+            self.files_imported.append(fullPath)
+
             return uploadResp.status_code
         else:
             # not valid
@@ -503,6 +657,33 @@ class db_schema_customattr:
 
         resultJson = resp.json()
         return status, resultJson
+
+    def get_bulk_queue_count(self):
+        """
+        query the catalog to see how many bulk imports are currently queue'd
+        """
+        apiURL = edcHelper.baseUrl + "/access/2/catalog/jobs/objectImports"
+
+        # print("\turl=" + apiURL)
+        params = {"jobStatus": "SUBMITTED"}
+        print(f"parms>>{params}")
+
+        # print(f"\t{file}")
+        bulkjob_resp = edcHelper.session.get(
+            apiURL,
+            params=params,
+        )
+        print("\tresponse=" + str(bulkjob_resp.status_code))
+        if bulkjob_resp.status_code == 200:
+            # valid - return the json
+            resultJson = bulkjob_resp.json()
+            total = resultJson["metadata"]["totalCount"]
+            print(f"\tqueued bulk import jobs={total}")
+            return total
+        else:
+            # not valid
+            print("\tcount of queued bulk imports failed")
+            return 0
 
 
 if __name__ == "__main__":

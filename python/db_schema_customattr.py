@@ -471,8 +471,8 @@ class db_schema_customattr:
             ],
             "defaultFacets": "false",
             "fl": ["core.name", "core.classType"],
-            "facet": "true",
-            "facetId": ["core.resourceType", "core.resourceName", "core.classType"],
+            # "facet": "true",
+            # "facetId": ["core.resourceType", "core.resourceName", "core.classType"],
             "offset": offset,
             "pageSize": page_size,
         }

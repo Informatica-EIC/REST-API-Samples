@@ -370,6 +370,7 @@ class db_schema_customattr:
         args_parser.add_argument(
             "-pf",
             "--parms_file",
+            default="./db_schema_vars.txt",
             required=False,
             help="varibles file to used to control the process, like custom attribute id & classtypes to check",
         )

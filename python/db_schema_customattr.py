@@ -78,15 +78,6 @@ def main():
     custom_process = db_schema_customattr()
     custom_process.start()
 
-    print("process ended")
-    print(f"\t    resources processed: {len(custom_process.resources_to_process)}")
-    print(f"\t          files created: {len(custom_process.files_created)}")
-    print(f"\t         total csv rows: {custom_process.rows_exported}")
-    print(f"\t bulk imports submitted: {len(custom_process.files_imported)}")
-
-    print(f"\t   schema lookup errors: {custom_process.schema_lookup_errors}")
-    print(f"\texternal schema matches: {custom_process.schema_alt_found}")
-    print("")
     elapsed_seconds = time.time() - start_time
     # print(f"run time = {elapsed_seconds:.2f} seconds ---")
     print(f"run time: {time.strftime("%H:%M:%S", time.gmtime(elapsed_seconds))}")
@@ -158,6 +149,19 @@ class db_schema_customattr:
             self.process_resource(resource_name)
         # 2 - get schema names and id's (for lookup)
         # 3 - find/export objects that need custom attribute values
+
+        self.print_summary()
+
+    def print_summary(self):
+        print("process ended")
+        print(f"\t    resources processed: {len(self.resources_to_process)}")
+        print(f"\t          files created: {len(self.files_created)}")
+        print(f"\t         total csv rows: {self.rows_exported}")
+        print(f"\t bulk imports submitted: {len(self.files_imported)}")
+
+        print(f"\t   schema lookup errors: {self.schema_lookup_errors}")
+        print(f"\texternal schema matches: {self.schema_alt_found}")
+        print("")
 
     def store_args(self) -> bool:
         # extract args as individial vars (& print for context)

@@ -105,6 +105,7 @@ class db_schema_customattr:
         self.sleep_seconds = 2  # seconds to sleep, to check queue again
         self.out_folder = "./bulk"  # default folder for csv files created
         self.schema_lookup_errors = 0  # counter for any errors finding sch name
+        self.schema_error_list = []  # list of resources with schema lookup errors
         self.schema_alt_found = 0  # counter for external schema matches
         self.files_created = []  # list of the actual files created
         self.files_imported = []  # list of the actual files imported
@@ -160,6 +161,8 @@ class db_schema_customattr:
         print(f"\t bulk imports submitted: {len(self.files_imported)}")
 
         print(f"\t   schema lookup errors: {self.schema_lookup_errors}")
+        if len(self.schema_lookup_errors) > 0:
+            print(f"\tschema lookup errors resources: {self.schema_lookup_errors}")
         print(f"\texternal schema matches: {self.schema_alt_found}")
         print("")
 
@@ -257,6 +260,9 @@ class db_schema_customattr:
                 )
 
                 return True
+            else:
+                print(f"parameter file not found: {self.args.parms_file}, exiting")
+                return False
 
     def validate_edc_connection(self) -> bool:
         edcHelper.initUrlAndSessionFromEDCSettings()
@@ -533,6 +539,8 @@ class db_schema_customattr:
                             f"\tschema id not found: {schema_id} skipping - obj={obj_id}"
                         )
                         self.schema_lookup_errors += 1
+                        if resource_name not in self.schema_error_list:
+                            self.schema_error_list.append(resource_name)
                         continue
                 schema_name = self.schema_map[schema_id]
                 # get the classype

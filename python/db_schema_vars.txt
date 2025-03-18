@@ -2,4 +2,9 @@
 schema_custom_attr_id=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab
 schema_custom_attr_name=DB schema
 
-class_types=com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn
+class_types=com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn com.infa.ldm.google.bigquery.View com.infa.ldm.google.bigquery.Table com.infa.ldm.google.bigquery.Field com.infa.ldm.AdvancedScanners.PLSQL.ExternalTable com.infa.ldm.AdvancedScanners.PLSQL.ExternalColumn
+
+# you can add up to 5 query filters (e.g. to included/exclude objects)
+#query_filter1=NOT core.resourceName:Oracle_invrl62dqd06_hermes
+query_filter2=NOT core.resourceName:Oracle23_ai_test_with_synonyms
+query_filter5=NOT core.resourceType:"Snowflake Advanced Scanner"

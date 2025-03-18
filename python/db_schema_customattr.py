@@ -161,7 +161,8 @@ class db_schema_customattr:
         print(f"\t bulk imports submitted: {len(self.files_imported)}")
 
         print(f"\t   schema lookup errors: {self.schema_lookup_errors}")
-        print(f"\tschema lookup errors resources: {self.schema_lookup_errors}")
+        if len(self.schema_error_list) > 0:
+            print(f"\tschema lookup errors resources: {self.schema_error_list}")
         print(f"\texternal schema matches: {self.schema_alt_found}")
         print("")
 

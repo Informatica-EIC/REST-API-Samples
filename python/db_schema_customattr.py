@@ -164,10 +164,12 @@ class db_schema_customattr:
         if self.args.outDir != self.out_folder:
             self.out_folder = self.args.outDir
             print(f"\toutput folder set to {self.out_folder}")
-            if self.out_folder != "":
-                if not os.path.exists(self.out_folder):
-                    print(f"\tcreating folder: {self.out_folder}")
-                    os.makedirs(self.out_folder)
+
+        # create output folder if it does not already exist
+        if self.out_folder != "":
+            if not os.path.exists(self.out_folder):
+                print(f"\tcreating folder: {self.out_folder}")
+                os.makedirs(self.out_folder)
 
         if self.args.edcimport:
             # execute bulk import switch (default off)
@@ -360,7 +362,7 @@ class db_schema_customattr:
             required=False,
             default="./bulk",
             help=(
-                "output folder to write results - default = ./bulk "
+                "folder for writing csv bulk import files. default = ./bulk "
                 " - will create folder if it does not exist"
             ),
         )

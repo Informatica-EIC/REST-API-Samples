@@ -162,8 +162,8 @@ class db_schema_customattr:
 
         print(f"\t   schema lookup errors: {self.schema_lookup_errors}")
         if len(self.schema_error_list) > 0:
-            print(f"\resources with errors: {len(self.schema_error_list)}")
-            print(f"\tresources with resources: {self.schema_error_list}")
+            print(f"\t #resources with errors: {len(self.schema_error_list)}")
+            print(f"\t  resources with errors: {self.schema_error_list}")
         print(f"\texternal schema matches: {self.schema_alt_found}")
         print("")
 

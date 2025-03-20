@@ -1,0 +1,10 @@
+# variables for db schema custom attribute process
+schema_custom_attr_id=com.infa.appmodels.ldm.<attribute_id>
+schema_custom_attr_name=DB schema
+
+class_types=com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn com.infa.ldm.google.bigquery.View com.infa.ldm.google.bigquery.Table com.infa.ldm.google.bigquery.Field com.infa.ldm.AdvancedScanners.PLSQL.ExternalTable com.infa.ldm.AdvancedScanners.PLSQL.ExternalColumn
+
+# you can add up to 5 query filters (e.g. to included/exclude objects) (prefix with NOT to exclude)
+#query_filter1=core.resourceName:Oracle_test
+#query_filter2=core.resourceType("Oracle" "Snowflake Advanced Scanner")
+#query_filter5=core.resourceType:"Snowflake Advanced Scanner"

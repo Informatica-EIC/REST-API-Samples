@@ -126,7 +126,7 @@ if process ends/terminated - can always be re-started because query will find ob
   - linux 8.x/macos - python3.12 -m venv .venv
   - windows - python -m venv .venv  (use py --list to list available python versions)
 - activate python environment
-  - source .venv/scripts/activate   (for linux & macos)
+  - source .venv/bin/activate   (for linux & macos)
   - .venv/scripts/activate.pst      (for windows)
 - download python 3rd party libraries  (one time setup per environment, installs requests, pythondotenv)
   - python -m pip install -r requirements.txt  

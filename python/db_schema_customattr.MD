@@ -119,7 +119,12 @@ if process ends/terminated - can always be re-started because query will find ob
 
 # How do you run this script?
 
-## Enrionment Setup (one time process)
+this utility is written in python and can be executed in 2 ways:-
+
+- as a python command-line
+- as a standalone binary (compiled from python code & has embedded python 12 runtime)
+
+## Enrionment Setup (one time process) - as python script
 - get code from git repository (into any folder)
   - git clone https://github.com/Informatica-EIC/REST-API-Samples.git
 - setup python environment (will work on any platform)
@@ -134,6 +139,19 @@ if process ends/terminated - can always be re-started because query will find ob
   - python setupConnection.py      (alternative - python db_schema_customattr.py --setup)
     - you will be promted for edc url, user id, pwd and have the option to write to .env file.  default file is named .env (in current folder)
 
+## Environment setup - as standalone binary process
+
+Note:  the binary version was created for Linux & has been validated on RHEL 8.10 and 9.5
+
+- download and unzip EDC_Schema_Custom_Attribute_Population.zip from TSFTP folder `/updates/Catalog_Solutions/utilities/edc_schema_custattr_script`
+- setup connection to EDC
+  - `./db_schema_customattr --setup`
+  - enter the EDC URL - e.g. https://asvdwsndboxrh01.informatica.com:9085
+  - enter the user id and password - if an LDAP security group is used, prefix the user with <security_group>/username
+  - if the url/id/pwd is valid - the EDC version will be printed and you will be prompted to save the settings to an environment file (default .env).
+  - Note:  you can create multiple environment files, to make it easy to use this process against multiple EDC instances
+
+
 ## Parameter file Setup
 
 - use or clone ./config/db_schema_vars.txt
@@ -146,7 +164,228 @@ com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relation
 
 # Example
 
-for this example, we will run the process to populate custom attributes for 2 different resource types (Oracle and Snowflake)
+for this example, we will run the process to populate custom attributes for 2 different resource types (Oracle and Snowflake) & use the standalone binary process.
 
+1 - copy/unzip script files
 
+`unzip EDC_Schema_Custom_Attribute_Population.zip`
+```
+Archive:  EDC_Schema_Custom_Attribute_Population.zip
+  inflating: db_schema_customattr
+  inflating: db_schema_vars.txt
+  inflating: db_schema_customattr.MD
+```
+
+2 - configure EDC connection (usually one-time)
+
+`./db_schema_customattr --setup`   (enter Y to create .env file)
+```
+[infa@asvdwsndboxrh01 db_schema_custattr]$ ./db_schema_customattr --setup
+creating log folder ./log
+initializing process...
+setting up cmd args...
+process starts here...
+setup requested..., calling setupConnection & exiting
+edc api configuration utility:
+
+enter catalog url - http(s):\<server>:port : https://asvdwsndboxrh01.informatica.com:9085
+enter user id: Native\admin
+password for user=Native\admin:
+
+validating that the information you entered is valid...
+validating connection to https://asvdwsndboxrh01.informatica.com:9085
+        api status code=200
+valid connection
+        {'releaseVersion': '10.5.6.1', 'buildVersion': '24', 'buildDate': 'Thu Aug 08 09:03:47 EDT 2024'}
+
+to make this a repeatable process - you can set the following enviroment variables, or an .env* file
+
+--- removed section showing INFA_EDC_AUTH values ---
+
+or - create a .env file with those settings.
+        Note:  if you create a file named '.env' - it will be automatically used by other scripts, or you can over-ride with the -v setting
+
+a .env file in the current folder does not exist, should i create it? (y or n)?:y
+creating .env.....
+file created  .env
+run time: 00:00:35
+```
+
+3 - configure script parameter file
+
+add the Custom attribute id from your EDC installation and optionally set filters to test the process
+
+`vi db_schema_vars.txt`
+```
+# variables for db schema custom attribute process
+schema_custom_attr_id=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab
+schema_custom_attr_name=DB schema
+
+class_types=com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn
+query_filter1=core.resourceType:("Snowflake Advanced Scanner" "Oracle")
+```
+
+4 - start the process (test mode)
+
+the script has a parameter  (--import or -i) that enables a test mode (will not update EDC)
+
+`./db_schema_customattr -v .env -pf db_schema_vars.txt`
+
+```
+[infa@asvdwsndboxrh01 db_schema_custattr]$ ./db_schema_customattr -v .env -pf db_schema_vars.txt
+initializing process...
+setting up cmd args...
+process starts here...
+test mode, no bulk import will happen
+storing vars file=db_schema_vars.txt
+ready to check .env file db_schema_vars.txt
+        loading from .env file db_schema_vars.txt
+        custon attr id value=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab from variable:'schema_custom_attr_id'
+        class types to update=com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn
+        storing additional query filter query_filter1 = core.resourceType:("Snowflake Advanced Scanner" "Oracle")
+        1 query filters stored from parameter file
+        reading common env/env file/cmd settings
+ready to check .env file .env
+                loading from .env file .env
+                read edc url from .env value=https://asvdwsndboxrh01.informatica.com:9085
+                replacing edc url with value from .env
+                replacing edc auth with INFA_EDC_AUTH value from .env
+        finished reading common env/.env/cmd parameters
+validating connection to https://asvdwsndboxrh01.informatica.com:9085
+        api status code=200
+EDC connection validated, version: 10.5.6.1 ## 105610
+validating custom attribute exists: id=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab
+        attribute is valid id=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab
+        attribute name=DB Schema
+        classes referenced by attr: 10
+1 - counting objects to process
+                search fq is now: ['NOT com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab:[* TO *]', 'core.resourceType:("Snowflake Advanced Scanner" "Oracle")']
+        search successful: 1,010 objects found to update
+        resource buckets = 2
+                resource:Snowflake_acme_warehouse count=722
+                resource:Oracle23ai_HR_OE count=288
+processing resource Snowflake_acme_warehouse
+        extracting schema names for resource: Snowflake_acme_warehouse
+        schema search successful: 6 found
+                schema=INFORMATION_SCHEMA id=Snowflake_acme_warehouse://ACME_WAREHOUSE/INFORMATION_SCHEMA
+                schema=STAGING id=Snowflake_acme_warehouse://ACME_WAREHOUSE/STAGING
+                schema=PUBLIC id=Snowflake_acme_warehouse://ACME_WAREHOUSE/PUBLIC
+                schema=EDW id=Snowflake_acme_warehouse://ACME_WAREHOUSE/EDW
+                schema=LANDING id=Snowflake_acme_warehouse://ACME_WAREHOUSE/LANDING
+                schema=HISTORY id=Snowflake_acme_warehouse://ACME_WAREHOUSE/HISTORY
+searching for objects to update in resource: Snowflake_acme_warehouse, should find 722
+        ready to query page with offset: 0
+        search successful: 722 objects found to update
+File to create=./bulk/Snowflake_acme_warehouse_20250604_094204799285.csv
+resource: Snowflake_acme_warehouse complete - importing 1 files
+        use --edcimport cmdline switch to enable bulk import
+processing resource Oracle23ai_HR_OE
+        extracting schema names for resource: Oracle23ai_HR_OE
+        schema search successful: 2 found
+                schema=HR id=Oracle23ai_HR_OE://FREEPDB1/HR
+                schema=OE id=Oracle23ai_HR_OE://FREEPDB1/OE
+searching for objects to update in resource: Oracle23ai_HR_OE, should find 288
+        ready to query page with offset: 0
+        search successful: 288 objects found to update
+File to create=./bulk/Oracle23ai_HR_OE_20250604_094204972440.csv
+resource: Oracle23ai_HR_OE complete - importing 1 files
+        use --edcimport cmdline switch to enable bulk import
+process ended
+            resources processed: 2
+                  files created: 2
+                 total csv rows: 1010
+         bulk imports submitted: 0
+           schema lookup errors: 0
+        external schema matches: 0
+
+run time: 00:00:00
+```
+
+this dry-run shows that 2 resources would be updated, with 1,010 objects to be updated.
+
+run the process again - adding the import to edc switch --edcimport
+
+```
+[infa@asvdwsndboxrh01 db_schema_custattr]$ ./db_schema_customattr -v .env -pf db_schema_vars.txt --edcimport
+initializing process...
+setting up cmd args...
+process starts here...
+bulk import mode configured --edcimport
+storing vars file=db_schema_vars.txt
+ready to check .env file db_schema_vars.txt
+        loading from .env file db_schema_vars.txt
+        custon attr id value=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab from variable:'schema_custom_attr_id'
+        class types to update=com.infa.ldm.relational.Table com.infa.ldm.relational.View com.infa.ldm.relational.Column com.infa.ldm.relational.ViewColumn
+        storing additional query filter query_filter1 = core.resourceType:("Snowflake Advanced Scanner" "Oracle")
+        1 query filters stored from parameter file
+        reading common env/env file/cmd settings
+ready to check .env file .env
+                loading from .env file .env
+                read edc url from .env value=https://asvdwsndboxrh01.informatica.com:9085
+                replacing edc url with value from .env
+                replacing edc auth with INFA_EDC_AUTH value from .env
+        finished reading common env/.env/cmd parameters
+validating connection to https://asvdwsndboxrh01.informatica.com:9085
+        api status code=200
+EDC connection validated, version: 10.5.6.1 ## 105610
+validating custom attribute exists: id=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab
+        attribute is valid id=com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab
+        attribute name=DB Schema
+        classes referenced by attr: 10
+1 - counting objects to process
+                search fq is now: ['NOT com.infa.appmodels.ldm.LDM_cc7ace0e_b460_475f_882d_104aa88665ab:[* TO *]', 'core.resourceType:("Snowflake Advanced Scanner" "Oracle")']
+        search successful: 1,010 objects found to update
+        resource buckets = 2
+                resource:Snowflake_acme_warehouse count=722
+                resource:Oracle23ai_HR_OE count=288
+processing resource Snowflake_acme_warehouse
+        extracting schema names for resource: Snowflake_acme_warehouse
+        schema search successful: 6 found
+                schema=INFORMATION_SCHEMA id=Snowflake_acme_warehouse://ACME_WAREHOUSE/INFORMATION_SCHEMA
+                schema=STAGING id=Snowflake_acme_warehouse://ACME_WAREHOUSE/STAGING
+                schema=PUBLIC id=Snowflake_acme_warehouse://ACME_WAREHOUSE/PUBLIC
+                schema=EDW id=Snowflake_acme_warehouse://ACME_WAREHOUSE/EDW
+                schema=LANDING id=Snowflake_acme_warehouse://ACME_WAREHOUSE/LANDING
+                schema=HISTORY id=Snowflake_acme_warehouse://ACME_WAREHOUSE/HISTORY
+searching for objects to update in resource: Snowflake_acme_warehouse, should find 722
+        ready to query page with offset: 0
+        search successful: 722 objects found to update
+File to create=./bulk/Snowflake_acme_warehouse_20250604_094425250240.csv
+resource: Snowflake_acme_warehouse complete - importing 1 files
+        bulk importing: ./bulk/Snowflake_acme_warehouse_20250604_094425250240.csv
+parms>>{'jobStatus': 'SUBMITTED'}
+        response=200
+        queued bulk import jobs=0
+        jobs currently queued for reset=0
+        response=200
+processing resource Oracle23ai_HR_OE
+        extracting schema names for resource: Oracle23ai_HR_OE
+        schema search successful: 2 found
+                schema=HR id=Oracle23ai_HR_OE://FREEPDB1/HR
+                schema=OE id=Oracle23ai_HR_OE://FREEPDB1/OE
+searching for objects to update in resource: Oracle23ai_HR_OE, should find 288
+        ready to query page with offset: 0
+        search successful: 288 objects found to update
+File to create=./bulk/Oracle23ai_HR_OE_20250604_094425415219.csv
+resource: Oracle23ai_HR_OE complete - importing 1 files
+        bulk importing: ./bulk/Oracle23ai_HR_OE_20250604_094425415219.csv
+parms>>{'jobStatus': 'SUBMITTED'}
+        response=200
+        queued bulk import jobs=0
+        jobs currently queued for reset=0
+        response=200
+process ended
+            resources processed: 2
+                  files created: 2
+                 total csv rows: 1010
+         bulk imports submitted: 2
+           schema lookup errors: 0
+        external schema matches: 0
+
+```
+
+the difference with the --edcimport is that bulk import processes will be called for each batch or objects (controlled by pagesize per resource)
+
+you can check the EDC monitoring page to see that the bulk import jobs have completed
+`https://<edc_server>:9085/ldmcatalog/main/ldmMonitorWS`
 

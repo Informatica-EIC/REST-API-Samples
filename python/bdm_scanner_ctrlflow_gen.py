@@ -534,12 +534,13 @@ def process_lookup(lookup_id: str):
             # left_id = left_obj.get("id")
             left_id = lookup_fields.get(left_name)
         else:
+            mem.error_count += 1
             print(
                 f"error: cannot find left lookup field with name:{left_name} "
                 f"in {lookup_fields}"
             )
             logging.error(
-                f"error: cannot find left lookup field with name:{left_name} "
+                f"cannot find left lookup field with name:{left_name} "
                 f"in {lookup_fields}"
             )
 
@@ -548,19 +549,25 @@ def process_lookup(lookup_id: str):
             # right_id = right_obj.get("id")
             right_id = lookup_fields.get(right_name)
         else:
+            mem.error_count += 1
             print(
                 f"error: cannot find right lookup field with name:{right_name} "
-                f"in {lookup_keys}"
+                f"in {lookup_keys}, control flow lineage will not be created"
             )
             logging.error(
-                f"error: cannot find right lookup field with name:{right_name} "
-                f"in {lookup_keys}"
+                f"cannot find right lookup field with name:{right_name} "
+                f"in {lookup_keys}, control flow lineage will not be created"
             )
 
         print(f"\tlookup left: {left_id}")
         print(f"\tlookup rght: {right_id}")
         logging.info(f"left lookup ={left_id}")
         logging.info(f"right lookup={right_id}")
+
+        if left_id == "" or right_id == "":
+            # no point processing, of both left and right object
+            # for comparison are not found
+            continue
 
         lineage_left_upstream = get_lineage_for_object(left_id, "IN", 1)
         # left_up_count = 0

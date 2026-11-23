@@ -5,7 +5,7 @@ rem -Djavax.net.ssl.trustStorePassword=<password>
 rem -Djavax.net.ssl.trustStoreType=JKS
 
 rem for ssl connection
-set JAVA_OPTS=-Djavax.net.ssl.trustStore=infa_truststore.jks -Djavax.net.ssl.trustStorePassword=pass2038@infaSSL -Djavax.net.ssl.trustStoreType=JKS
+set JAVA_OPTS=-Djavax.net.ssl.trustStore=infa_truststore.jks -Djavax.net.ssl.trustStorePassword=[truststore_password] -Djavax.net.ssl.trustStoreType=JKS
 
 rem set JAVA_OPTS=
 

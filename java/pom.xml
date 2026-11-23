@@ -7,31 +7,27 @@
     <version>1.1</version>
 
     <dependencies>
-        <!-- you will need to add ccd ..
-        lient.jar to your local maven repository
-        e.g. after downloading client.jar
+        <!-- you will need to add the EDC client.jar to your local maven repository
+        e.g. after downloading client.jar from your EDC installation/version
+        use the EDC version the jar came from as the -Dversion value, e.g. for EDC 10.5.10:
         mvn install:install-file -Dfile=client.jar -DgroupId=com.infa.products.ldm.core.rest.v2.client
-        -DartifactId=EDC-Rest-Client -Dversion=10.5.0.1 -Dpackaging=jar
+        -DartifactId=EDC-Rest-Client -Dversion=10.5.10 -Dpackaging=jar -DgeneratePom=true
+        (the client usually works against older/newer EDC servers, except where the api has changed)
         -->
-        <!-- <dependency>
-            <groupId>com.infa.products.ldm.core.rest.v2.client</groupId>
-            <artifactId>EDC-Rest-Client</artifactId>
-            <version>10.5.0.1</version>
-        </dependency> -->
         <dependency>
             <groupId>com.infa.products.ldm.core.rest.v2.client</groupId>
             <artifactId>EDC-Rest-Client</artifactId>
-            <version>10.5.2.1</version>
+            <version>10.5.10</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>1.10.0</version>
+            <version>1.15.0</version>
         </dependency>
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
-            <version>5.8</version>
+            <version>5.12.0</version>
         </dependency>
         <!-- for FuzzyBGAssociater-->
         <dependency>
@@ -72,7 +68,13 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.16.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.8.0</version>
                 <executions>
                   <execution>
                     <phase>package</phase>

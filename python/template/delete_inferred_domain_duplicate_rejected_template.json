@@ -1,0 +1,92 @@
+{
+    "providerId": "DataDomainScanner",
+    "userId": "<user>",
+    "modifiedBy": "<user>",
+    "updates": [
+        {
+            "id": "<column_id>",
+            "objectClass": "",
+            "deleteDestinationLinks": [],
+            "deleteFacts": [
+                {
+                    "attrUuid": "com.infa.ldm.profiling.infDataDomain",
+                    "value": "<inf_domain_value>"
+                }
+            ],
+            "deleteSourceLinks": [
+                {
+                    "associationId": "com.infa.ldm.profiling.DataDomainColumnInferred",
+                    "objectId": "DataDomain://<domain>",
+                    "properties": [
+                        {
+                            "attrUuid": "core.targetAttribute",
+                            "value": "com.infa.ldm.profiling.DataDomainColumnInferred"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreationTime",
+                            "value": "<inf_timestamp>"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreatedBy",
+                            "value": "<user>"
+                        }
+                    ]
+                },
+                {
+                    "associationId": "com.infa.ldm.profiling.DataDomainColumnAll",
+                    "objectId": "DataDomain://<domain>",
+                    "properties": [
+                        {
+                            "attrUuid": "core.targetAttribute",
+                            "value": "com.infa.ldm.profiling.DataDomainColumnAll"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreationTime",
+                            "value": "<inf_timestamp>"
+                        },
+                        {
+                            "attrUuid": "com.infa.ldm.profiling.linkCreatedBy",
+                            "value": "<user>"
+                        }
+                    ]
+                }
+            ],
+            "hideDestinationLinks": [],
+            "hideFacts": [],
+            "hideSourceLinks": [],
+            "newDestinationLinks": [],
+            "newFacts": [],
+            "newSourceLinks": [],
+            "unhideDestinationLinks": [],
+            "unhideFacts": [],
+            "unhideSourceLinks": []
+        },
+        {
+            "id": "<table_id>",
+            "objectClass": "",
+            "deleteDestinationLinks": [],
+            "deleteFacts": [],
+            "deleteSourceLinks": [
+                {
+                    "associationId": "com.infa.ldm.profiling.DataDomainTable",
+                    "objectId": "DataDomain://<domain>",
+                    "properties": [
+                        {
+                            "attrUuid": "core.name",
+                            "value": "<column_id>"
+                        }
+                    ]
+                }
+            ],
+            "hideDestinationLinks": [],
+            "hideFacts": [],
+            "hideSourceLinks": [],
+            "newDestinationLinks": [],
+            "newFacts": [],
+            "newSourceLinks": [],
+            "unhideDestinationLinks": [],
+            "unhideFacts": [],
+            "unhideSourceLinks": []
+        }
+    ]
+}

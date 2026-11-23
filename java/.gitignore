@@ -5,3 +5,4 @@ out/*.log
 /edc_java_forked.code-workspace
 target/*
 .vscode/*
+packaged/

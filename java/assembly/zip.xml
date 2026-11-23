@@ -66,7 +66,7 @@
 		</file>
 		<file>
 			<source>
-				${project.basedir}/columnLineageSummary.sh
+				${project.basedir}/package/columnLineageSummary.sh
 			</source>
 			<outputDirectory>
 				/
@@ -77,7 +77,7 @@
 		</file>
 		<file>
 			<source>
-				${project.basedir}/columnLineageSummary.cmd
+				${project.basedir}/package/columnLineageSummary.cmd
 			</source>
 			<outputDirectory>
 				/

@@ -12,7 +12,7 @@ propfile=$1
 
 #ssl if needed
 export INFA_TRUSTSTORE=$INFA_HOME/services/shared/security/infa_truststore.jks
-export INFA_TRUSTSTORE_PASSWORD=pass2038@infaSSL
+export INFA_TRUSTSTORE_PASSWORD=[truststore password]
  
 export JAVA_OPTS="-Djavax.net.ssl.trustStore=$INFA_TRUSTSTORE -Djavax.net.ssl.trustStorePassword=$INFA_TRUSTSTORE_PASSWORD -Djavax.net.ssl.trustStoreType=JKS "
 export MY_JAVA_OPTS

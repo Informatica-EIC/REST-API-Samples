@@ -58,8 +58,11 @@
     </dependencies>
 
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <!-- java level to compile for: default 8 (backwards compatible for older edc/jdk installs)
+             override on the command line to test other levels, e.g. mvn package -Djava.release=17
+             using "release" (not source/target) also checks the code against that java version's api -->
+        <java.release>8</java.release>
+        <maven.compiler.release>${java.release}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -95,5 +98,41 @@
         
         </plugins>
     </build>
+
+    <profiles>
+        <!-- optional vulnerability scan of all dependencies (including libraries bundled inside the EDC client jar)
+             not part of the normal build - run with:
+               mvn verify -Pdependency-check -DnvdApiKey=<your NVD api key>
+             a free key is needed (https://nvd.nist.gov/developers/request-an-api-key)
+             the first run downloads the NVD database (several minutes), later runs are much faster
+             reports: target/dependency-check-report.html and .json
+             the build is not failed on findings (failBuildOnCVSS=11) - review the report -->
+        <profile>
+            <id>dependency-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>13.0.0</version>
+                        <configuration>
+                            <failBuildOnCVSS>11</failBuildOnCVSS>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                            </formats>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
